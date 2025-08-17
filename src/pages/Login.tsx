@@ -1,0 +1,204 @@
+import React, { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react'
+import { useAuthStore } from '../store/authStore'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'sonner'
+
+// Schema de validación
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'El email es requerido')
+    .email('Formato de email inválido'),
+  password: z
+    .string()
+    .min(1, 'La contraseña es requerida')
+    .min(6, 'La contraseña debe tener al menos 6 caracteres')
+})
+
+type LoginFormData = z.infer<typeof loginSchema>
+
+const Login: React.FC = () => {
+  const [showPassword, setShowPassword] = useState(false)
+  const { login, isLoading, error, clearError } = useAuthStore()
+  const navigate = useNavigate()
+  
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema)
+  })
+
+  // Limpiar errores cuando el componente se monta
+  useEffect(() => {
+    clearError()
+  }, [])
+
+  // Limpiar errores cuando el usuario empieza a escribir
+  useEffect(() => {
+    if (error) {
+      clearError()
+    }
+  }, [error, clearError])
+
+  const onSubmit = async (data: LoginFormData) => {
+    try {
+      const result = await login(data.email, data.password)
+      
+      if (result.success) {
+        toast.success('¡Bienvenido al sistema!')
+        navigate('/dashboard')
+      } else {
+        toast.error(result.error || 'Error en el login')
+      }
+    } catch (error) {
+      console.error('Error en login:', error)
+      toast.error('Error inesperado. Intente nuevamente.')
+    }
+  }
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword)
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-8">
+        {/* Header */}
+        <div className="text-center">
+          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
+            <LogIn className="h-8 w-8 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            INCIBOT
+          </h2>
+          <p className="text-gray-600">
+            Ingresa con tu cuenta de usuario
+          </p>
+        </div>
+
+        {/* Formulario */}
+        <div className="bg-white rounded-lg shadow-lg p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            {/* Campo Email */}
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                {...register('email')}
+                type="email"
+                id="email"
+                className={`w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.email ? 'border-red-300' : 'border-gray-300'
+                }`}
+                placeholder="usuario@ejemplo.com"
+                disabled={isSubmitting || isLoading}
+              />
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+
+            {/* Campo Contraseña */}
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Contraseña
+              </label>
+              <div className="relative">
+                <input
+                  {...register('password')}
+                  type={showPassword ? 'text' : 'password'}
+                  id="password"
+                  className={`w-full px-3 py-2 pr-10 border rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                    errors.password ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="••••••••"
+                  disabled={isSubmitting || isLoading}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={togglePasswordVisibility}
+                  disabled={isSubmitting || isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+              </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-1" />
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+
+            {/* Error general */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                <p className="text-sm text-red-600 flex items-center">
+                  <AlertCircle className="h-4 w-4 mr-2" />
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {/* Botón de envío */}
+            <button
+              type="submit"
+              disabled={isSubmitting || isLoading}
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSubmitting || isLoading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Iniciando sesión...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Iniciar Sesión
+                </div>
+              )}
+            </button>
+          </form>
+
+          {/* Enlaces adicionales */}
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              ¿No tienes cuenta?{' '}
+              <button
+                type="button"
+                className="font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:underline"
+                onClick={() => navigate('/registro')}
+              >
+                Regístrate aquí
+              </button>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center text-sm text-gray-500">
+          <p>© 2025 INCIBOT</p>
+          <p>Proyecto Integrador</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Login
