@@ -131,6 +131,61 @@ export interface Database {
           created_at?: string
         }
       }
+      conversaciones: {
+        Row: {
+          id: string
+          usuario_id: string
+          titulo: string
+          estado: 'activa' | 'cerrada' | 'archivada'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          usuario_id: string
+          titulo: string
+          estado?: 'activa' | 'cerrada' | 'archivada'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          usuario_id?: string
+          titulo?: string
+          estado?: 'activa' | 'cerrada' | 'archivada'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      mensajes: {
+        Row: {
+          id: string
+          conversacion_id: string
+          usuario_id: string | null
+          contenido: string
+          tipo: 'usuario' | 'bot' | 'sistema'
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          conversacion_id: string
+          usuario_id?: string | null
+          contenido: string
+          tipo?: 'usuario' | 'bot' | 'sistema'
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          conversacion_id?: string
+          usuario_id?: string | null
+          contenido?: string
+          tipo?: 'usuario' | 'bot' | 'sistema'
+          metadata?: Json
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
@@ -164,6 +219,14 @@ export type Respuesta = Database['public']['Tables']['respuestas']['Row']
 export type RespuestaInsert = Database['public']['Tables']['respuestas']['Insert']
 export type RespuestaUpdate = Database['public']['Tables']['respuestas']['Update']
 
+export type Conversacion = Database['public']['Tables']['conversaciones']['Row']
+export type ConversacionInsert = Database['public']['Tables']['conversaciones']['Insert']
+export type ConversacionUpdate = Database['public']['Tables']['conversaciones']['Update']
+
+export type Mensaje = Database['public']['Tables']['mensajes']['Row']
+export type MensajeInsert = Database['public']['Tables']['mensajes']['Insert']
+export type MensajeUpdate = Database['public']['Tables']['mensajes']['Update']
+
 // Tipos extendidos con relaciones
 export type IncidenciaConRelaciones = Incidencia & {
   usuario?: Usuario
@@ -173,6 +236,16 @@ export type IncidenciaConRelaciones = Incidencia & {
 }
 
 export type RespuestaConUsuario = Respuesta & {
+  usuario?: Usuario
+}
+
+export type ConversacionConMensajes = Conversacion & {
+  usuario?: Usuario
+  mensajes?: MensajeConUsuario[]
+  ultimo_mensaje?: MensajeConUsuario
+}
+
+export type MensajeConUsuario = Mensaje & {
   usuario?: Usuario
 }
 

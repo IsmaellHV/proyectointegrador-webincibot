@@ -1,39 +1,27 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Loader2, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Bot, MessageSquare, Plus, Clock, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
 import { supabase } from '../lib/supabase'
-import type { ChatMessage, ChatCategoria } from '../types/database'
-
-interface OpenAIMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
+import Chat from '../components/Chat'
+import { obtenerConversacionesUsuario } from '../lib/supabase'
+import type { ChatCategoria, Conversacion } from '../types/database'
 
 const Chatbot: React.FC = () => {
   const { user } = useAuthStore()
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      content: '¡Hola! Soy tu asistente virtual de INCIBOT. Puedo ayudarte a reportar problemas técnicos, consultar el estado de tus incidencias o responder preguntas frecuentes. ¿En qué puedo ayudarte hoy?',
-      sender: 'bot' as const,
-      timestamp: new Date()
-    }
-  ])
-  const [inputMessage, setInputMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [conversaciones, setConversaciones] = useState<Conversacion[]>([])
+  const [conversacionActiva, setConversacionActiva] = useState<string | null>(null)
+  const [mostrarListaConversaciones, setMostrarListaConversaciones] = useState(true)
+  const [cargandoConversaciones, setCargandoConversaciones] = useState(false)
   const [categorias, setCategorias] = useState<ChatCategoria[]>([])
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Cargar categorías al montar el componente
+  // Cargar datos al montar el componente
   useEffect(() => {
-    loadCategorias()
-  }, [])
-
-  // Auto-scroll al final de los mensajes
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    if (user) {
+      loadCategorias()
+      cargarConversaciones()
+    }
+  }, [user])
 
   const loadCategorias = async () => {
     try {
@@ -56,299 +44,209 @@ const Chatbot: React.FC = () => {
     }
   }
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return
-
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      content: inputMessage.trim(),
-      sender: 'user' as const,
-      timestamp: new Date()
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    setInputMessage('')
-    setIsLoading(true)
-
+  const cargarConversaciones = async () => {
+    if (!user) return
+    
     try {
-      // Simular respuesta del chatbot (aquí iría la integración con OpenAI)
-      const botResponse = await generateBotResponse(userMessage.content)
-      
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        content: botResponse,
-        sender: 'bot' as const,
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, botMessage])
+      setCargandoConversaciones(true)
+      const conversacionesData = await obtenerConversacionesUsuario(user.id)
+      setConversaciones(conversacionesData)
     } catch (error) {
-      console.error('Error sending message:', error)
-      toast.error('Error al enviar el mensaje. Por favor, intenta nuevamente.')
-      
-      const errorMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        content: 'Lo siento, ha ocurrido un error. Por favor, intenta nuevamente o contacta al soporte técnico.',
-        sender: 'bot' as const,
-        timestamp: new Date()
-      }
-      setMessages(prev => [...prev, errorMessage])
+      console.error('Error cargando conversaciones:', error)
+      toast.error('Error al cargar las conversaciones')
     } finally {
-      setIsLoading(false)
+      setCargandoConversaciones(false)
     }
   }
 
-  const generateBotResponse = async (userInput: string): Promise<string> => {
-    // Aquí iría la integración real con OpenAI API
-    // Por ahora, simulamos respuestas inteligentes basadas en palabras clave
-    
-    const input = userInput.toLowerCase()
-    
-    // Detectar intención de crear incidencia
-    if (input.includes('problema') || input.includes('error') || input.includes('falla') || 
-        input.includes('no funciona') || input.includes('incidencia') || input.includes('reportar')) {
-      
-      // Simular creación de incidencia
-      const incidenciaCreada = await crearIncidencia(userInput)
-      
-      if (incidenciaCreada) {
-        return `He registrado tu incidencia con el ID #${incidenciaCreada.id}. \n\n**Detalles:**\n- **Título:** ${incidenciaCreada.titulo}\n- **Categoría:** ${incidenciaCreada.categoria}\n- **Prioridad:** ${incidenciaCreada.prioridad}\n- **Estado:** Abierta\n\nNuestro equipo de soporte la revisará pronto. Recibirás notificaciones sobre cualquier actualización.`
-      }
-    }
-    
-    // Respuestas para consultas de estado
-    if (input.includes('estado') || input.includes('seguimiento') || input.includes('actualización')) {
-      return 'Para consultar el estado de tus incidencias, puedes ir a la sección "Mis Incidencias" en el menú lateral. Allí encontrarás todas tus incidencias con su estado actual y actualizaciones.'
-    }
-    
-    // Respuestas para ayuda general
-    if (input.includes('ayuda') || input.includes('cómo') || input.includes('help')) {
-      return 'Puedo ayudarte con:\n\n• **Reportar incidencias:** Describe tu problema y yo lo registraré automáticamente\n• **Consultar estado:** Te guío para revisar tus incidencias\n• **Preguntas frecuentes:** Respondo dudas comunes\n• **Contacto:** Te proporciono información de contacto\n\n¿Qué necesitas hacer?'
-    }
-    
-    // Respuesta por defecto
-    return 'Entiendo tu consulta. Para brindarte la mejor ayuda, ¿podrías ser más específico sobre el problema que estás experimentando? Por ejemplo, puedes describir:\n\n• Qué sistema o aplicación está fallando\n• Qué error específico estás viendo\n• Cuándo comenzó el problema\n• Qué pasos has intentado para solucionarlo'
+  // Manejar selección de conversación
+  const seleccionarConversacion = (conversacionId: string) => {
+    setConversacionActiva(conversacionId)
+    setMostrarListaConversaciones(false)
   }
 
-  const crearIncidencia = async (descripcion: string): Promise<any> => {
-    try {
-      // Determinar categoría y prioridad basada en el contenido
-      const categoria = determinarCategoria(descripcion)
-      const prioridad = determinarPrioridad(descripcion)
-      const titulo = generarTitulo(descripcion)
+  // Crear nueva conversación
+  const crearNuevaConversacion = () => {
+    setConversacionActiva(null)
+    setMostrarListaConversaciones(false)
+  }
 
-      const { data, error } = await supabase
-        .from('incidencias')
-        .insert({
-          titulo,
-          descripcion,
-          categoria_id: Number(categoria.id),
-          prioridad,
-          estado: 'abierta',
-          usuario_id: user?.id,
-          usuario_reporta: user?.id
-        })
-        .select(`
-          *,
-          categoria:categorias(nombre)
-        `)
-        .single()
+  // Manejar cuando se crea una nueva conversación
+  const handleConversacionCreada = (conversacionId: string) => {
+    setConversacionActiva(conversacionId)
+    cargarConversaciones() // Recargar la lista
+  }
 
-      if (error) throw error
+  // Volver a la lista de conversaciones
+  const volverALista = () => {
+    setMostrarListaConversaciones(true)
+    setConversacionActiva(null)
+  }
 
-      toast.success(`Incidencia #${data.id} creada exitosamente`)
-      
-      return {
-        id: data.id,
-        titulo: data.titulo,
-        categoria: data.categoria?.nombre || 'General',
-        prioridad: data.prioridad
-      }
-    } catch (error) {
-      console.error('Error creating incident:', error)
-      toast.error('Error al crear la incidencia')
-      return null
+  // Formatear fecha
+  const formatearFecha = (fecha: string) => {
+    const date = new Date(fecha)
+    const ahora = new Date()
+    const diferencia = ahora.getTime() - date.getTime()
+    const dias = Math.floor(diferencia / (1000 * 60 * 60 * 24))
+    
+    if (dias === 0) {
+      return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    } else if (dias === 1) {
+      return 'Ayer'
+    } else if (dias < 7) {
+      return `Hace ${dias} días`
+    } else {
+      return date.toLocaleDateString('es-ES')
     }
   }
 
-  const determinarCategoria = (descripcion: string): ChatCategoria => {
-    const desc = descripcion.toLowerCase()
-    
-    // Buscar palabras clave para determinar categoría
-    if (desc.includes('red') || desc.includes('internet') || desc.includes('wifi') || desc.includes('conexión')) {
-      return categorias.find(c => c.nombre.toLowerCase().includes('red')) || categorias[0]
-    }
-    if (desc.includes('software') || desc.includes('aplicación') || desc.includes('programa') || desc.includes('sistema')) {
-      return categorias.find(c => c.nombre.toLowerCase().includes('software')) || categorias[0]
-    }
-    if (desc.includes('hardware') || desc.includes('computadora') || desc.includes('monitor') || desc.includes('teclado') || desc.includes('mouse')) {
-      return categorias.find(c => c.nombre.toLowerCase().includes('hardware')) || categorias[0]
-    }
-    if (desc.includes('email') || desc.includes('correo') || desc.includes('outlook') || desc.includes('gmail')) {
-      return categorias.find(c => c.nombre.toLowerCase().includes('email')) || categorias[0]
-    }
-    
-    // Categoría por defecto
-    return categorias.find(c => c.nombre.toLowerCase().includes('general')) || categorias[0] || {
-      id: 1,
-      nombre: 'General',
-      descripcion: 'Categoría general',
-      activa: true,
-      created_at: new Date().toISOString()
-    }
-  }
-
-  const determinarPrioridad = (descripcion: string): 'baja' | 'media' | 'alta' | 'critica' => {
-    const desc = descripcion.toLowerCase()
-    
-    if (desc.includes('urgente') || desc.includes('crítico') || desc.includes('no puedo trabajar') || desc.includes('sistema caído')) {
-      return 'critica'
-    }
-    if (desc.includes('importante') || desc.includes('afecta') || desc.includes('bloquea')) {
-      return 'alta'
-    }
-    if (desc.includes('lento') || desc.includes('molesto') || desc.includes('ocasional')) {
-      return 'media'
-    }
-    
-    return 'media' // Prioridad por defecto
-  }
-
-  const generarTitulo = (descripcion: string): string => {
-    // Generar un título conciso basado en la descripción
-    const palabras = descripcion.split(' ').slice(0, 8)
-    let titulo = palabras.join(' ')
-    
-    if (titulo.length > 50) {
-      titulo = titulo.substring(0, 47) + '...'
-    }
-    
-    return titulo || 'Incidencia reportada via chatbot'
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage()
-    }
+  if (!user) {
+    return (
+      <div className="h-full flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Bot className="h-16 w-16 mx-auto text-gray-400 mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Acceso Requerido</h2>
+          <p className="text-gray-600">Debes iniciar sesión para usar el chatbot.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="h-full flex flex-col bg-white">
-      {/* Header */}
-      <div className="bg-blue-600 text-white p-4 shadow-sm">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-500 p-2 rounded-full">
-            <Bot className="h-6 w-6" />
+    <div className="h-full flex bg-gray-50">
+      {/* Sidebar - Lista de conversaciones */}
+      {mostrarListaConversaciones && (
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+          {/* Header del sidebar */}
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-900">Conversaciones</h2>
+              <button
+                onClick={crearNuevaConversacion}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Nueva conversación"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold">Asistente Virtual</h1>
-            <p className="text-blue-100 text-sm">INCIBOT - Gestión inteligente de incidencias</p>
+
+          {/* Lista de conversaciones */}
+          <div className="flex-1 overflow-y-auto">
+            {cargandoConversaciones ? (
+              <div className="flex justify-center items-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              </div>
+            ) : conversaciones.length === 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm">No tienes conversaciones aún</p>
+                <button
+                  onClick={crearNuevaConversacion}
+                  className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  Iniciar primera conversación
+                </button>
+              </div>
+            ) : (
+              <div className="p-2">
+                {conversaciones.map((conversacion) => (
+                  <button
+                    key={conversacion.id}
+                    onClick={() => seleccionarConversacion(conversacion.id)}
+                    className="w-full p-3 text-left hover:bg-gray-50 rounded-lg transition-colors border-b border-gray-100 last:border-b-0"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {conversacion.titulo}
+                        </h3>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            conversacion.estado === 'activa' 
+                              ? 'bg-green-100 text-green-800'
+                              : conversacion.estado === 'cerrada'
+                              ? 'bg-gray-100 text-gray-800'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {conversacion.estado === 'activa' && <CheckCircle className="h-3 w-3 mr-1" />}
+                            {conversacion.estado === 'cerrada' && <Clock className="h-3 w-3 mr-1" />}
+                            {conversacion.estado}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 ml-2">
+                        {formatearFecha(conversacion.updated_at)}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex items-start space-x-3 ${
-              message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
-            }`}
-          >
-            {/* Avatar */}
-            <div
-              className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                message.sender === 'user'
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-blue-600 text-white'
-              }`}
-            >
-              {message.sender === 'user' ? (
-                <User className="h-4 w-4" />
-              ) : (
-                <Bot className="h-4 w-4" />
-              )}
+      {/* Área principal - Chat */}
+      <div className="flex-1 flex flex-col">
+        {!mostrarListaConversaciones ? (
+          <>
+            {/* Header del chat */}
+            <div className="bg-white border-b border-gray-200 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={volverALista}
+                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors lg:hidden"
+                  >
+                    ←
+                  </button>
+                  <div className="flex items-center space-x-2">
+                    <Bot className="h-6 w-6 text-blue-600" />
+                    <div>
+                      <h1 className="text-lg font-semibold text-gray-900">Asistente Virtual INCIBOT</h1>
+                      <p className="text-sm text-gray-500">Gestión inteligente de incidencias</p>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={volverALista}
+                  className="hidden lg:flex items-center space-x-2 px-3 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="text-sm">Ver conversaciones</span>
+                </button>
+              </div>
             </div>
 
-            {/* Message Bubble */}
-            <div
-              className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                message.sender === 'user'
-                  ? 'bg-gray-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
-              }`}
-            >
-              <div className="whitespace-pre-wrap text-sm">{message.content}</div>
-              <div
-                className={`text-xs mt-1 ${
-                  message.sender === 'user' ? 'text-gray-300' : 'text-gray-500'
-                }`}
+            {/* Componente Chat */}
+            <div className="flex-1">
+              <Chat
+                conversacionId={conversacionActiva || undefined}
+                onConversacionCreada={handleConversacionCreada}
+              />
+            </div>
+          </>
+        ) : (
+          /* Vista de bienvenida cuando se muestra la lista */
+          <div className="flex-1 flex items-center justify-center bg-white">
+            <div className="text-center max-w-md">
+              <Bot className="h-20 w-20 mx-auto text-blue-600 mb-6" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">Bienvenido al Asistente Virtual</h2>
+              <p className="text-gray-600 mb-6">
+                Selecciona una conversación existente o inicia una nueva para comenzar a chatear con nuestro asistente inteligente.
+              </p>
+              <button
+                onClick={crearNuevaConversacion}
+                className="inline-flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
-                {message.timestamp.toLocaleTimeString('es-ES', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="flex items-start space-x-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-              <Bot className="h-4 w-4" />
-            </div>
-            <div className="bg-gray-100 px-4 py-2 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                <span className="text-sm text-gray-600">Escribiendo...</span>
-              </div>
+                <Plus className="h-5 w-5" />
+                <span>Nueva Conversación</span>
+              </button>
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input Area */}
-      <div className="border-t bg-gray-50 p-4">
-        <div className="flex space-x-3">
-          <div className="flex-1">
-            <textarea
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Describe tu problema o haz una pregunta..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              rows={2}
-              disabled={isLoading}
-            />
-          </div>
-          <button
-            onClick={sendMessage}
-            disabled={!inputMessage.trim() || isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-          >
-            {isLoading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
-          </button>
-        </div>
-        
-        {/* Help text */}
-        <div className="mt-2 flex items-center space-x-2 text-xs text-gray-500">
-          <AlertCircle className="h-3 w-3" />
-          <span>Presiona Enter para enviar, Shift+Enter para nueva línea</span>
-        </div>
       </div>
     </div>
   )

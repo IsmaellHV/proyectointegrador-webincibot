@@ -18,26 +18,29 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { canAccess } = useRole()
   const location = useLocation()
 
-  // Timeout para evitar loading infinito
+  // Timeout optimizado para evitar loading infinito
   useEffect(() => {
     if (isLoading && !sessionVerified) {
       const timeout = setTimeout(() => {
-        console.warn('⚠️ [PROTECTED_ROUTE] Loading timeout reached, forcing error state')
-        clearError()
-      }, 5000) // 5 segundos máximo de loading
+        console.warn('⚠️ [PROTECTED_ROUTE] Loading timeout reached, allowing navigation')
+        // No forzar error, solo permitir navegación si hay datos válidos
+        if (!user) {
+          clearError()
+        }
+      }, 3000) // Reducido a 3 segundos para mejor UX
       
       return () => clearTimeout(timeout)
     }
-  }, [isLoading, sessionVerified, clearError])
+  }, [isLoading, sessionVerified, clearError, user])
 
-  // Mostrar loading mientras se verifica la autenticación (con timeout)
-  if (isLoading && !sessionVerified) {
+  // Mostrar loading solo si realmente es necesario (optimizado)
+  if (isLoading && !sessionVerified && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Verificando autenticación...</p>
-          <p className="text-xs text-gray-400 mt-2">Esto no debería tomar más de unos segundos</p>
+          <p className="text-xs text-gray-400 mt-2">Cargando datos del usuario</p>
         </div>
       </div>
     )
@@ -138,20 +141,20 @@ export const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   const { user, isLoading, error, connectionError, retryAuth, clearError, sessionVerified } = useAuthStore()
   const location = useLocation()
 
-  // Timeout para evitar loading infinito en rutas públicas
+  // Timeout optimizado para rutas públicas
   useEffect(() => {
     if (isLoading && !sessionVerified) {
       const timeout = setTimeout(() => {
         console.warn('⚠️ [PUBLIC_ROUTE] Loading timeout reached, allowing access')
         clearError()
-      }, 3000) // 3 segundos para rutas públicas
+      }, 2000) // Reducido a 2 segundos para rutas públicas
       
       return () => clearTimeout(timeout)
     }
   }, [isLoading, sessionVerified, clearError])
 
-  // Si está cargando y no se ha verificado la sesión, mostrar loading breve
-  if (isLoading && !sessionVerified) {
+  // Mostrar loading breve solo si es necesario
+  if (isLoading && !sessionVerified && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
