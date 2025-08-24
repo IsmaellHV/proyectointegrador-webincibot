@@ -22,7 +22,7 @@ export const getCurrentUser = async () => {
   return user
 }
 
-// Función para obtener el perfil del usuario con rol
+// Función para obtener el perfil del usuario con rol (optimizada)
 export const getUserProfile = async (userId: string) => {
   const { data, error } = await supabase
     .from('usuarios')
@@ -38,61 +38,62 @@ export const getUserProfile = async (userId: string) => {
   return data
 }
 
-// Función para obtener el perfil del usuario actual
+// Función para obtener el perfil del usuario actual (optimizada)
 export const getCurrentUserProfile = async () => {
   try {
-    console.log('🔍 [SUPABASE] Iniciando getCurrentUserProfile()');
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError) {
-      console.error('🔍 [SUPABASE] Error obteniendo usuario de auth:', authError);
-      return null;
-    }
-    
-    if (!user) {
-      console.log('🔍 [SUPABASE] No hay usuario autenticado');
-      return null;
-    }
+    // Obtener usuario y perfil en paralelo para mayor eficiencia
+    const [authResult, profileResult] = await Promise.allSettled([
+      supabase.auth.getUser(),
+      supabase.from('usuarios').select('*')
+    ]);
 
-    console.log('🔍 [SUPABASE] Usuario encontrado, buscando perfil para ID:', user.id);
-
-    const { data: profile, error } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('🔍 [SUPABASE] Error obteniendo perfil de tabla usuarios:', {
-        error,
-        userId: user.id,
-        errorCode: error.code,
-        errorMessage: error.message
-      });
+    // Verificar resultado de autenticación
+    if (authResult.status === 'rejected') {
+      console.error('🔍 [SUPABASE] Error obteniendo usuario:', authResult.reason);
       return null;
     }
 
+    const { data: { user }, error: authError } = authResult.value;
+    
+    if (authError || !user) {
+      return null;
+    }
+
+    // Verificar resultado de perfil
+    if (profileResult.status === 'rejected') {
+      console.error('🔍 [SUPABASE] Error obteniendo perfiles:', profileResult.reason);
+      return null;
+    }
+
+    const { data: profiles, error: profileError } = profileResult.value;
+    
+    if (profileError) {
+      console.error('🔍 [SUPABASE] Error en consulta de perfil:', profileError.message);
+      return null;
+    }
+
+    // Buscar el perfil del usuario actual
+    const profile = profiles?.find(p => p.id === user.id);
+    
     if (!profile) {
-      console.warn('🔍 [SUPABASE] Perfil no encontrado para usuario:', user.id);
-      return null;
+      // Fallback: consulta directa si no se encuentra en la consulta general
+       const { data: directProfile, error: directError } = await supabase
+         .from('usuarios')
+         .select('*')
+         .eq('id', user.id)
+         .single();
+        
+      if (directError) {
+        console.error('🔍 [SUPABASE] Error en consulta directa:', directError.message);
+        return null;
+      }
+      
+      return directProfile;
     }
-
-    console.log('🔍 [SUPABASE] Perfil obtenido exitosamente:', {
-      id: profile.id,
-      email: profile.email,
-      nombre: profile.nombre,
-      rol: profile.rol,
-      activo: profile.activo
-    });
 
     return profile;
   } catch (error) {
-    console.error('🔍 [SUPABASE] Error inesperado en getCurrentUserProfile():', {
-      error,
-      message: error instanceof Error ? error.message : 'Error desconocido',
-      stack: error instanceof Error ? error.stack : undefined
-    });
+    console.error('🔍 [SUPABASE] Error inesperado en getCurrentUserProfile():', error instanceof Error ? error.message : 'Error desconocido');
     return null;
   }
 }

@@ -281,7 +281,7 @@ const Soporte: React.FC = () => {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Panel de Soporte</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Gestiona y atiende las incidencias del sistema
+          Gestiona y atiende las incidencias del sistema INCIBOT
         </p>
       </div>
 

@@ -266,7 +266,7 @@ const Registro: React.FC = () => {
 
         {/* Footer */}
         <div className="text-center text-sm text-gray-500">
-          <p>© 2024 Sistema de Gestión de Incidencias</p>
+          <p>© 2024 INCIBOT</p>
           <p>Al registrarte, aceptas nuestros términos de servicio</p>
         </div>
       </div>

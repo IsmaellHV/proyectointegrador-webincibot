@@ -15,7 +15,7 @@ const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
-      content: '¡Hola! Soy tu asistente virtual para gestión de incidencias. Puedo ayudarte a reportar problemas técnicos, consultar el estado de tus incidencias o responder preguntas frecuentes. ¿En qué puedo ayudarte hoy?',
+      content: '¡Hola! Soy tu asistente virtual de INCIBOT. Puedo ayudarte a reportar problemas técnicos, consultar el estado de tus incidencias o responder preguntas frecuentes. ¿En qué puedo ayudarte hoy?',
       sender: 'bot' as const,
       timestamp: new Date()
     }
@@ -247,7 +247,7 @@ const Chatbot: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-semibold">Asistente Virtual</h1>
-            <p className="text-blue-100 text-sm">Gestión inteligente de incidencias</p>
+            <p className="text-blue-100 text-sm">INCIBOT - Gestión inteligente de incidencias</p>
           </div>
         </div>
       </div>

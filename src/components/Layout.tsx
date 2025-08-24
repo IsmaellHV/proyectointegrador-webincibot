@@ -1,26 +1,14 @@
-import React, { useState } from 'react'
-import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import {
-  Home,
-  MessageSquare,
-  Inbox,
-  Headphones,
-  Users,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  Bell,
-  User
-} from 'lucide-react'
-import { useAuthStore, useRole } from '../store/authStore'
-import { toast } from 'sonner'
+import React, { useState } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Home, MessageSquare, Inbox, Headphones, Users, Settings, LogOut, Menu, X, Bell, User } from 'lucide-react';
+import { useAuthStore, useRole } from '../store/authStore';
+import { toast } from 'sonner';
 
 interface NavItem {
-  name: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  allowedRoles: string[]
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  allowedRoles: string[];
 }
 
 const navigation: NavItem[] = [
@@ -28,91 +16,89 @@ const navigation: NavItem[] = [
     name: 'Dashboard',
     href: '/dashboard',
     icon: Home,
-    allowedRoles: ['personal', 'soporte', 'administrador']
+    allowedRoles: ['personal', 'soporte', 'administrador'],
   },
   {
     name: 'Chatbot',
     href: '/chatbot',
     icon: MessageSquare,
-    allowedRoles: ['personal', 'soporte', 'administrador']
+    allowedRoles: ['personal', 'soporte', 'administrador'],
   },
   {
     name: 'Mis Incidencias',
     href: '/incidencias',
     icon: Inbox,
-    allowedRoles: ['personal', 'soporte', 'administrador']
+    allowedRoles: ['personal', 'soporte', 'administrador'],
   },
   {
     name: 'Atención',
     href: '/soporte',
     icon: Headphones,
-    allowedRoles: ['soporte', 'administrador']
+    allowedRoles: ['soporte', 'administrador'],
   },
   {
     name: 'Usuarios',
     href: '/usuarios',
     icon: Users,
-    allowedRoles: ['administrador']
+    allowedRoles: ['administrador'],
   },
   {
     name: 'Administración',
     href: '/admin',
     icon: Settings,
-    allowedRoles: ['administrador']
-  }
-]
+    allowedRoles: ['administrador'],
+  },
+];
 
 const Layout: React.FC = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const { user, logout } = useAuthStore()
-  const { canAccess } = useRole()
-  const navigate = useNavigate()
-  const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout } = useAuthStore();
+  const { canAccess } = useRole();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     try {
-      await logout()
-      toast.success('Sesión cerrada correctamente')
-      navigate('/login')
+      await logout();
+      toast.success('Sesión cerrada correctamente');
+      navigate('/login');
     } catch (error) {
-      console.error('Error en logout:', error)
-      toast.error('Error al cerrar sesión')
+      console.error('Error en logout:', error);
+      toast.error('Error al cerrar sesión');
     }
-  }
+  };
 
   const isCurrentPath = (path: string) => {
-    return location.pathname === path
-  }
+    return location.pathname === path;
+  };
 
-  const filteredNavigation = navigation.filter(item => 
-    canAccess(item.allowedRoles)
-  )
+  const filteredNavigation = navigation.filter((item) => canAccess(item.allowedRoles));
 
   const getRoleBadgeColor = (rol: string) => {
     switch (rol) {
       case 'administrador':
-        return 'bg-red-100 text-red-800'
+        return 'bg-red-100 text-red-800';
       case 'soporte':
-        return 'bg-blue-100 text-blue-800'
+        return 'bg-blue-100 text-blue-800';
       case 'personal':
-        return 'bg-green-100 text-green-800'
+        return 'bg-green-100 text-green-800';
       default:
-        return 'bg-gray-100 text-gray-800'
+        return 'bg-gray-100 text-gray-800';
     }
-  }
+  };
 
   const getRoleName = (rol: string) => {
     switch (rol) {
       case 'administrador':
-        return 'Admin'
+        return 'Admin';
       case 'soporte':
-        return 'Soporte'
+        return 'Soporte';
       case 'personal':
-        return 'Personal'
+        return 'Personal';
       default:
-        return rol
+        return rol;
     }
-  }
+  };
 
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
@@ -121,41 +107,31 @@ const Layout: React.FC = () => {
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={() => setSidebarOpen(false)} />
         <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
           <div className="absolute top-0 right-0 -mr-12 pt-2">
-            <button
-              type="button"
-              className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <button type="button" className="ml-1 flex items-center justify-center h-10 w-10 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white" onClick={() => setSidebarOpen(false)}>
               <X className="h-6 w-6 text-white" />
             </button>
           </div>
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <MessageSquare className="h-5 w-5 text-white" />
-              </div>
-              <span className="ml-2 text-xl font-bold text-gray-900">Incidencias</span>
+              <img src="/src/assets/logo_incibot.png" alt="INCIBOT" className="h-8 w-8" />
+              <span className="ml-2 text-xl font-bold text-gray-900">INCIBOT</span>
             </div>
             <nav className="mt-5 px-2 space-y-1">
               {filteredNavigation.map((item) => {
-                const Icon = item.icon
+                const Icon = item.icon;
                 return (
                   <button
                     key={item.name}
                     onClick={() => {
-                      navigate(item.href)
-                      setSidebarOpen(false)
+                      navigate(item.href);
+                      setSidebarOpen(false);
                     }}
-                    className={`group flex items-center px-2 py-2 text-base font-medium rounded-md w-full text-left ${
-                      isCurrentPath(item.href)
-                        ? 'bg-blue-100 text-blue-900'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
+                    className={`group flex items-center px-2 py-2 text-base font-medium rounded-md w-full text-left ${isCurrentPath(item.href) ? 'bg-blue-100 text-blue-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
                   >
                     <Icon className="mr-4 h-6 w-6" />
                     {item.name}
                   </button>
-                )
+                );
               })}
             </nav>
           </div>
@@ -179,28 +155,18 @@ const Layout: React.FC = () => {
           <div className="flex flex-col h-0 flex-1 border-r border-gray-200 bg-white">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
-                <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <MessageSquare className="h-5 w-5 text-white" />
-                </div>
-                <span className="ml-2 text-xl font-bold text-gray-900">Incidencias</span>
+                <img src="/src/assets/logo_incibot.png" alt="INCIBOT" className="h-8 w-8" />
+                <span className="ml-2 text-xl font-bold text-gray-900">INCIBOT</span>
               </div>
               <nav className="mt-5 flex-1 px-2 space-y-1">
                 {filteredNavigation.map((item) => {
-                  const Icon = item.icon
+                  const Icon = item.icon;
                   return (
-                    <button
-                      key={item.name}
-                      onClick={() => navigate(item.href)}
-                      className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left ${
-                        isCurrentPath(item.href)
-                          ? 'bg-blue-100 text-blue-900'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                      }`}
-                    >
+                    <button key={item.name} onClick={() => navigate(item.href)} className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left ${isCurrentPath(item.href) ? 'bg-blue-100 text-blue-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
                       <Icon className="mr-3 h-5 w-5" />
                       {item.name}
                     </button>
-                  )
+                  );
                 })}
               </nav>
             </div>
@@ -212,16 +178,8 @@ const Layout: React.FC = () => {
                 <div className="ml-3 flex-1">
                   <p className="text-sm font-medium text-gray-700 truncate">{user?.nombre}</p>
                   <div className="flex items-center justify-between">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      getRoleBadgeColor(user?.rol || '')
-                    }`}>
-                      {getRoleName(user?.rol || '')}
-                    </span>
-                    <button
-                      onClick={handleLogout}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                      title="Cerrar sesión"
-                    >
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user?.rol || '')}`}>{getRoleName(user?.rol || '')}</span>
+                    <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 focus:outline-none" title="Cerrar sesión">
                       <LogOut className="h-4 w-4" />
                     </button>
                   </div>
@@ -236,11 +194,7 @@ const Layout: React.FC = () => {
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         {/* Header móvil */}
         <div className="md:hidden pl-1 pt-1 sm:pl-3 sm:pt-3">
-          <button
-            type="button"
-            className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500"
-            onClick={() => setSidebarOpen(true)}
-          >
+          <button type="button" className="-ml-0.5 -mt-0.5 h-12 w-12 inline-flex items-center justify-center rounded-md text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-6 w-6" />
           </button>
         </div>
@@ -250,9 +204,7 @@ const Layout: React.FC = () => {
           <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between h-16">
               <div className="flex items-center">
-                <h1 className="text-2xl font-semibold text-gray-900">
-                  Sistema de Gestión de Incidencias
-                </h1>
+                <h1 className="text-2xl font-semibold text-gray-900">INCIBOT</h1>
               </div>
               <div className="flex items-center space-x-4">
                 <button className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md">
@@ -260,16 +212,8 @@ const Layout: React.FC = () => {
                 </button>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-700">{user?.nombre}</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    getRoleBadgeColor(user?.rol || '')
-                  }`}>
-                    {getRoleName(user?.rol || '')}
-                  </span>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md"
-                    title="Cerrar sesión"
-                  >
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user?.rol || '')}`}>{getRoleName(user?.rol || '')}</span>
+                  <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md" title="Cerrar sesión">
                     <LogOut className="h-5 w-5" />
                   </button>
                 </div>
@@ -288,7 +232,7 @@ const Layout: React.FC = () => {
         </main>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

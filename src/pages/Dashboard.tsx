@@ -230,7 +230,7 @@ const Dashboard: React.FC = () => {
           <p className="mt-1 text-sm text-gray-500">
             {isPersonal ? 'Vista personal de tus incidencias' : 
              isSoporte ? 'Panel de control para soporte técnico' :
-             'Panel de administración del sistema'}
+             'Panel de administración del sistema INCIBOT'}
           </p>
         </div>
         <div className="mt-4 flex md:mt-0 md:ml-4">

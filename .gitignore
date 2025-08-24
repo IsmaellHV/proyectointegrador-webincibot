@@ -29,3 +29,6 @@ dist-ssr
 .vscode
 .vercelignore
 vercel.json
+docker-compose.yml
+coverage
+__tests__
