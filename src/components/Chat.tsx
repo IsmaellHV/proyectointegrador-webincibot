@@ -1,30 +1,75 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Clock, CheckCircle } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import {
-  crearConversacion,
-  enviarMensaje,
-  obtenerMensajesConversacion,
-  suscribirseAMensajes,
-  crearIncidencia
-} from '../lib/supabase';
-import { MensajeConUsuario } from '../types/database';
 import { toast } from 'sonner';
+// Importaciones de Supabase removidas para versión demo
+
+// Tipos simplificados para el chat demo
+interface MensajeDemo {
+  id: string;
+  contenido: string;
+  tipo: 'usuario' | 'bot' | 'sistema';
+  timestamp: string;
+  usuario_id?: string;
+}
+
+interface ConversacionDemo {
+  id: string;
+  titulo: string;
+  mensajes: MensajeDemo[];
+  usuario_id: string;
+  created_at: string;
+}
 
 interface ChatProps {
   conversacionId?: string;
   onConversacionCreada?: (conversacionId: string) => void;
 }
 
+// Funciones locales para simular el chat
+const obtenerConversacionesLocal = (): ConversacionDemo[] => {
+  const conversaciones = localStorage.getItem('chat_conversaciones');
+  return conversaciones ? JSON.parse(conversaciones) : [];
+};
+
+const guardarConversacionesLocal = (conversaciones: ConversacionDemo[]) => {
+  localStorage.setItem('chat_conversaciones', JSON.stringify(conversaciones));
+};
+
+const crearConversacionLocal = (usuarioId: string, titulo: string): ConversacionDemo => {
+  const nuevaConversacion: ConversacionDemo = {
+    id: Date.now().toString(),
+    titulo,
+    mensajes: [],
+    usuario_id: usuarioId,
+    created_at: new Date().toISOString()
+  };
+  
+  const conversaciones = obtenerConversacionesLocal();
+  conversaciones.push(nuevaConversacion);
+  guardarConversacionesLocal(conversaciones);
+  
+  return nuevaConversacion;
+};
+
+const agregarMensajeLocal = (conversacionId: string, mensaje: MensajeDemo) => {
+  const conversaciones = obtenerConversacionesLocal();
+  const conversacion = conversaciones.find(c => c.id === conversacionId);
+  
+  if (conversacion) {
+    conversacion.mensajes.push(mensaje);
+    guardarConversacionesLocal(conversaciones);
+  }
+};
+
 const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => {
   const { user } = useAuthStore();
-  const [mensajes, setMensajes] = useState<MensajeConUsuario[]>([]);
+  const [mensajes, setMensajes] = useState<MensajeDemo[]>([]);
   const [nuevoMensaje, setNuevoMensaje] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [conversacionActual, setConversacionActual] = useState<string | null>(conversacionId || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const suscripcionRef = useRef<any>(null);
 
   // Scroll automático al final
   const scrollToBottom = () => {
@@ -39,45 +84,23 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
   useEffect(() => {
     if (conversacionActual) {
       cargarMensajes();
-      configurarSuscripcion();
     }
-
-    return () => {
-      if (suscripcionRef.current) {
-        suscripcionRef.current.unsubscribe();
-      }
-    };
   }, [conversacionActual]);
 
-  // Configurar suscripción en tiempo real
-  const configurarSuscripcion = () => {
-    if (!conversacionActual) return;
-
-    if (suscripcionRef.current) {
-      suscripcionRef.current.unsubscribe();
-    }
-
-    suscripcionRef.current = suscribirseAMensajes(
-      conversacionActual,
-      (nuevoMensaje: MensajeConUsuario) => {
-        setMensajes(prev => {
-          // Evitar duplicados
-          const existe = prev.some(m => m.id === nuevoMensaje.id);
-          if (existe) return prev;
-          return [...prev, nuevoMensaje];
-        });
-      }
-    );
-  };
-
-  // Cargar mensajes de la conversación
-  const cargarMensajes = async () => {
+  // Cargar mensajes de la conversación local
+  const cargarMensajes = () => {
     if (!conversacionActual) return;
 
     try {
       setCargando(true);
-      const mensajesData = await obtenerMensajesConversacion(conversacionActual);
-      setMensajes(mensajesData);
+      const conversaciones = obtenerConversacionesLocal();
+      const conversacion = conversaciones.find(c => c.id === conversacionActual);
+      
+      if (conversacion) {
+        setMensajes(conversacion.mensajes);
+      } else {
+        setMensajes([]);
+      }
     } catch (error) {
       console.error('Error cargando mensajes:', error);
       toast.error('Error al cargar los mensajes');
@@ -86,8 +109,8 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
     }
   };
 
-  // Crear nueva conversación
-  const crearNuevaConversacion = async (primerMensaje: string) => {
+  // Crear nueva conversación local
+  const crearNuevaConversacion = (primerMensaje: string) => {
     if (!user) return null;
 
     try {
@@ -95,7 +118,7 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
         ? primerMensaje.substring(0, 50) + '...'
         : primerMensaje;
       
-      const nuevaConversacion = await crearConversacion(user.id, titulo);
+      const nuevaConversacion = crearConversacionLocal(user.id, titulo);
       setConversacionActual(nuevaConversacion.id);
       
       if (onConversacionCreada) {
@@ -110,7 +133,7 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
     }
   };
 
-  // Enviar mensaje
+  // Enviar mensaje local
   const handleEnviarMensaje = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -125,29 +148,39 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
       
       // Crear conversación si no existe
       if (!conversacionId) {
-        conversacionId = await crearNuevaConversacion(contenidoMensaje);
+        conversacionId = crearNuevaConversacion(contenidoMensaje);
         if (!conversacionId) return;
       }
 
-      // Enviar mensaje del usuario
-      await enviarMensaje(
-        conversacionId,
-        contenidoMensaje,
-        'usuario',
-        user.id
-      );
+      // Crear mensaje del usuario
+      const mensajeUsuario: MensajeDemo = {
+        id: Date.now().toString(),
+        contenido: contenidoMensaje,
+        tipo: 'usuario',
+        timestamp: new Date().toISOString(),
+        usuario_id: user.id
+      };
+
+      // Agregar mensaje del usuario
+      agregarMensajeLocal(conversacionId, mensajeUsuario);
+      
+      // Actualizar estado local inmediatamente
+      setMensajes(prev => [...prev, mensajeUsuario]);
 
       // Simular respuesta del bot después de un breve delay
       setTimeout(async () => {
         try {
           const respuestaBot = await generarRespuestaBot(contenidoMensaje);
-          await enviarMensaje(
-            conversacionId!,
-            respuestaBot,
-            'bot',
-            null,
-            { timestamp: new Date().toISOString() }
-          );
+          
+          const mensajeBot: MensajeDemo = {
+            id: (Date.now() + 1).toString(),
+            contenido: respuestaBot,
+            tipo: 'bot',
+            timestamp: new Date().toISOString()
+          };
+          
+          agregarMensajeLocal(conversacionId!, mensajeBot);
+          setMensajes(prev => [...prev, mensajeBot]);
         } catch (error) {
           console.error('Error enviando respuesta del bot:', error);
         }
@@ -161,14 +194,14 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
     }
   };
 
-  // Generar respuesta automática del bot
+  // Generar respuesta automática del bot (versión simplificada)
   const generarRespuestaBot = async (mensajeUsuario: string): Promise<string> => {
     // Simular procesamiento
     await new Promise(resolve => setTimeout(resolve, 1000))
     
     const mensaje = mensajeUsuario.toLowerCase()
     
-    // Detectar si es un problema técnico que requiere crear incidencia
+    // Detectar si es un problema técnico
     const esProblema = mensaje.includes('problema') || mensaje.includes('error') || 
                       mensaje.includes('falla') || mensaje.includes('no funciona') ||
                       mensaje.includes('no puedo') || mensaje.includes('bloqueado') ||
@@ -176,23 +209,17 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
                       mensaje.includes('crítico') || mensaje.includes('urgente') ||
                       mensaje.includes('sistema caído') || mensaje.includes('emergencia')
     
-    // Si es un problema y tenemos usuario autenticado, crear incidencia
+    // Si es un problema, simular creación de incidencia
     if (esProblema && user?.id) {
-      try {
-        console.log('🔍 Detectado problema técnico, creando incidencia...')
-        const incidencia = await crearIncidencia(mensajeUsuario, user.id)
-        console.log('✅ Incidencia creada:', incidencia)
-        
-        return `He detectado que tienes un problema técnico y he creado automáticamente la incidencia #${incidencia.id} para que nuestro equipo técnico pueda asistirte.\n\n📋 **Detalles de la incidencia:**\n- **Título:** ${incidencia.titulo}\n- **Prioridad:** ${incidencia.prioridad}\n- **Estado:** ${incidencia.estado}\n\nNuestro equipo revisará tu caso y te contactará pronto. ¿Hay algo más en lo que pueda ayudarte?`
-      } catch (error) {
-        console.error('❌ Error creando incidencia:', error)
-        return 'He detectado que tienes un problema técnico. Aunque hubo un inconveniente al crear la incidencia automáticamente, he registrado tu consulta. ¿Podrías proporcionar más detalles sobre el problema para poder asistirte mejor?'
-      }
+      const incidenciaId = Date.now().toString().slice(-6); // ID simulado
+      console.log('🔍 Detectado problema técnico (modo demo), simulando incidencia...')
+      
+      return `He detectado que tienes un problema técnico y he registrado tu consulta como incidencia #${incidenciaId} (modo demostración).\n\n📋 **Detalles de la incidencia:**\n- **ID:** #${incidenciaId}\n- **Título:** ${mensajeUsuario.substring(0, 50)}...\n- **Prioridad:** Media\n- **Estado:** Pendiente\n\nEn un entorno real, nuestro equipo técnico revisaría tu caso. ¿Hay algo más en lo que pueda ayudarte?`
     }
     
     // Respuestas básicas del bot
     if (mensaje.includes('hola') || mensaje.includes('buenos') || mensaje.includes('saludos')) {
-      return '¡Hola! Soy el asistente virtual de INCIBOT. ¿En qué puedo ayudarte hoy? Si tienes algún problema técnico, puedo crear una incidencia automáticamente para que nuestro equipo te asista.';
+      return '¡Hola! Soy el asistente virtual de INCIBOT. ¿En qué puedo ayudarte hoy? Si tienes algún problema técnico, puedo registrar tu consulta para que nuestro equipo te asista.';
     }
     
     if (mensaje.includes('gracias') || mensaje.includes('perfecto') || mensaje.includes('excelente')) {
@@ -200,15 +227,19 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
     }
     
     if (mensaje.includes('incidencia') || mensaje.includes('ticket') || mensaje.includes('reporte')) {
-      return 'Si necesitas reportar un problema técnico, simplemente descríbeme el inconveniente y crearé automáticamente una incidencia para que nuestro equipo técnico pueda asistirte.';
+      return 'Si necesitas reportar un problema técnico, simplemente descríbeme el inconveniente y registraré tu consulta para que nuestro equipo técnico pueda asistirte.';
     }
     
     if (mensaje.includes('adiós') || mensaje.includes('hasta luego') || mensaje.includes('chao')) {
       return '¡Hasta luego! No dudes en contactarme si necesitas ayuda en el futuro.';
     }
     
+    if (mensaje.includes('chat') || mensaje.includes('funciona') || mensaje.includes('test')) {
+      return '¡El chat está funcionando perfectamente! Estoy aquí para ayudarte con cualquier consulta o problema técnico que tengas.';
+    }
+    
     // Respuesta por defecto
-    return 'Entiendo tu consulta. ¿Podrías proporcionar más detalles para poder asistirte mejor? Si se trata de un problema técnico, puedo crear una incidencia automáticamente para que nuestro equipo especializado te ayude.';
+    return 'Entiendo tu consulta. ¿Podrías proporcionar más detalles para poder asistirte mejor? Si se trata de un problema técnico, puedo registrar tu consulta para que nuestro equipo especializado te ayude.';
   };
 
   // Formatear fecha

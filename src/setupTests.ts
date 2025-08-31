@@ -6,6 +6,40 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Mock localStorage globalmente
+const localStorageMock = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: jest.fn((key: string) => {
+      const value = store[key] || null;
+      console.log(`🧪 [LOCALSTORAGE_MOCK] getItem(${key}) = ${value}`);
+      return value;
+    }),
+    setItem: jest.fn((key: string, value: string) => {
+      console.log(`🧪 [LOCALSTORAGE_MOCK] setItem(${key}, ${value})`);
+      store[key] = value;
+    }),
+    removeItem: jest.fn((key: string) => {
+      console.log(`🧪 [LOCALSTORAGE_MOCK] removeItem(${key})`);
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      console.log(`🧪 [LOCALSTORAGE_MOCK] clear()`);
+      store = {};
+    }),
+  };
+})();
+
+Object.defineProperty(global, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+  writable: true,
+});
+
 // Mock de Supabase
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn(() => ({

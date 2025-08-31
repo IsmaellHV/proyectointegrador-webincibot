@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Inbox, Headphones, Users, Settings, LogOut, Menu, X, Bell, User } from 'lucide-react';
 import { useAuthStore, useRole } from '../store/authStore';
 import { toast } from 'sonner';
+import ConfirmationModal from './ConfirmationModal';
 
 interface NavItem {
   name: string;
@@ -52,12 +53,17 @@ const navigation: NavItem[] = [
 
 const Layout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const { user, logout } = useAuthStore();
   const { canAccess } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = async () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const handleLogoutConfirm = async () => {
     try {
       await logout();
       toast.success('Sesión cerrada correctamente');
@@ -136,13 +142,18 @@ const Layout: React.FC = () => {
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-            <div className="flex items-center">
+            <div className="flex items-center w-full">
               <div className="h-10 w-10 bg-gray-300 rounded-full flex items-center justify-center">
                 <User className="h-6 w-6 text-gray-600" />
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm font-medium text-gray-700">{user?.nombre}</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <div className="flex items-center justify-between">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user?.rol || '')}`}>{getRoleName(user?.rol || '')}</span>
+                  <button onClick={handleLogoutClick} className="text-gray-400 hover:text-gray-600 focus:outline-none" title="Cerrar sesión">
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -179,7 +190,7 @@ const Layout: React.FC = () => {
                   <p className="text-sm font-medium text-gray-700 truncate">{user?.nombre}</p>
                   <div className="flex items-center justify-between">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user?.rol || '')}`}>{getRoleName(user?.rol || '')}</span>
-                    <button onClick={handleLogout} className="text-gray-400 hover:text-gray-600 focus:outline-none" title="Cerrar sesión">
+                    <button onClick={handleLogoutClick} className="text-gray-400 hover:text-gray-600 focus:outline-none" title="Cerrar sesión">
                       <LogOut className="h-4 w-4" />
                     </button>
                   </div>
@@ -213,7 +224,7 @@ const Layout: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-700">{user?.nombre}</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(user?.rol || '')}`}>{getRoleName(user?.rol || '')}</span>
-                  <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md" title="Cerrar sesión">
+                  <button onClick={handleLogoutClick} className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-md" title="Cerrar sesión">
                     <LogOut className="h-5 w-5" />
                   </button>
                 </div>
@@ -231,6 +242,17 @@ const Layout: React.FC = () => {
           </div>
         </main>
       </div>
+
+      {/* Modal de confirmación de logout */}
+      <ConfirmationModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleLogoutConfirm}
+        title="Cerrar Sesión"
+        message="¿Desea salir?"
+        confirmText="Sí"
+        cancelText="Cancelar"
+      />
     </div>
   );
 };

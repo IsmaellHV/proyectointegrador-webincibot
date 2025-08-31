@@ -2,11 +2,90 @@ import React, { useState, useEffect } from 'react'
 import { Search, Filter, Plus, Eye, MessageSquare, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
-import { supabase } from '../lib/supabase'
 import type { Incidencia, Categoria, IncidenciaFilter } from '../types/database'
 
+// Datos de demostración
+const datosDemo = {
+  categorias: [
+    { id: 1, nombre: 'Hardware', descripcion: 'Problemas con equipos físicos', activo: true },
+    { id: 2, nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas', activo: true },
+    { id: 3, nombre: 'Red', descripcion: 'Problemas de conectividad y red', activo: true },
+    { id: 4, nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos', activo: true },
+    { id: 5, nombre: 'Otros', descripcion: 'Otros tipos de incidencias', activo: true }
+  ],
+  incidencias: [
+    {
+      id: 1,
+      titulo: 'Problema con el sistema de impresión',
+      descripcion: 'La impresora de la oficina no responde y no se puede imprimir documentos importantes. El problema comenzó esta mañana.',
+      estado: 'abierta',
+      prioridad: 'alta',
+      categoria_id: 1,
+      usuario_id: 'demo-user',
+      created_at: '2024-01-15T09:30:00Z',
+      categorias: { nombre: 'Hardware', descripcion: 'Problemas con equipos físicos' },
+      respuestas: []
+    },
+    {
+      id: 2,
+      titulo: 'Error en el sistema de facturación',
+      descripcion: 'El sistema de facturación muestra errores al generar reportes mensuales. Los datos no se cargan correctamente.',
+      estado: 'en_progreso',
+      prioridad: 'critica',
+      categoria_id: 2,
+      usuario_id: 'demo-user',
+      created_at: '2024-01-14T14:20:00Z',
+      categorias: { nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas' },
+      respuestas: [
+        { id: 1, contenido: 'Hemos identificado el problema y estamos trabajando en una solución.' }
+      ]
+    },
+    {
+      id: 3,
+      titulo: 'Conexión lenta a internet',
+      descripcion: 'La velocidad de internet en el área de trabajo es muy lenta, afectando la productividad del equipo.',
+      estado: 'resuelta',
+      prioridad: 'media',
+      categoria_id: 3,
+      usuario_id: 'demo-user',
+      created_at: '2024-01-13T11:45:00Z',
+      categorias: { nombre: 'Red', descripcion: 'Problemas de conectividad y red' },
+      respuestas: [
+        { id: 1, contenido: 'Hemos reiniciado el router y mejorado la configuración.' },
+        { id: 2, contenido: 'El problema ha sido resuelto. La velocidad ahora es normal.' }
+      ]
+    },
+    {
+      id: 4,
+      titulo: 'No puedo acceder al sistema CRM',
+      descripcion: 'Mi usuario no puede acceder al sistema CRM. Aparece un mensaje de credenciales inválidas.',
+      estado: 'cerrada',
+      prioridad: 'baja',
+      categoria_id: 4,
+      usuario_id: 'demo-user',
+      created_at: '2024-01-12T16:10:00Z',
+      categorias: { nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos' },
+      respuestas: [
+        { id: 1, contenido: 'Se han restablecido los permisos de acceso.' }
+      ]
+    },
+    {
+      id: 5,
+      titulo: 'Solicitud de nuevo software',
+      descripcion: 'Necesito instalar un software de diseño gráfico para mi trabajo. ¿Podrían ayudarme con la instalación?',
+      estado: 'abierta',
+      prioridad: 'baja',
+      categoria_id: 5,
+      usuario_id: 'demo-user',
+      created_at: '2024-01-11T10:30:00Z',
+      categorias: { nombre: 'Otros', descripcion: 'Otros tipos de incidencias' },
+      respuestas: []
+    }
+  ]
+}
+
 const Incidencias: React.FC = () => {
-  const { user } = useAuthStore()
+  const { user, sessionVerified } = useAuthStore()
   const [incidencias, setIncidencias] = useState<Incidencia[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,133 +99,48 @@ const Incidencias: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false)
 
   useEffect(() => {
-    loadData()
+    cargarDatos()
   }, [])
 
   useEffect(() => {
     loadIncidencias()
   }, [selectedFilter, searchTerm])
 
-  const loadData = async () => {
-    try {
-      await Promise.all([
-        loadCategorias(),
-        loadIncidencias()
-      ])
-    } catch (error) {
-      console.error('Error loading data:', error)
-      toast.error('Error al cargar los datos')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadCategorias = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categorias')
-        .select('*')
-        .eq('activo', true)
-        .order('nombre')
-
-      if (error) throw error
-      setCategorias(data || [])
-    } catch (error) {
-      console.error('Error loading categories:', error)
-    }
-  }
-
-  const loadIncidencias = async () => {
-    console.log('🔄 Iniciando carga de incidencias para usuario:', user?.id)
+  // Cargar datos de demostración
+  const cargarDatos = async () => {
+    setLoading(true)
+    // Simular carga asíncrona
+    await new Promise(resolve => setTimeout(resolve, 500))
     
-    try {
-      // Primero intentar cargar con consulta simplificada
-      console.log('📊 Intentando consulta simplificada...')
-      let query = supabase
-        .from('incidencias')
-        .select(`
-          *,
-          categorias(nombre, descripcion)
-        `)
-        .eq('usuario_id', user?.id)
-        .order('created_at', { ascending: false })
+    setCategorias(datosDemo.categorias)
+    loadIncidencias() // Cargar incidencias con filtros aplicados
+    setLoading(false)
+  }
 
-      // Aplicar filtros
-      if (selectedFilter.estado !== 'todas') {
-        query = query.eq('estado', selectedFilter.estado)
-        console.log('🔍 Filtro estado aplicado:', selectedFilter.estado)
-      }
-      if (selectedFilter.prioridad !== 'todas') {
-        query = query.eq('prioridad', selectedFilter.prioridad)
-        console.log('🔍 Filtro prioridad aplicado:', selectedFilter.prioridad)
-      }
-      if (selectedFilter.categoria !== 'todas') {
-        query = query.eq('categoria_id', parseInt(selectedFilter.categoria))
-        console.log('🔍 Filtro categoría aplicado:', selectedFilter.categoria)
-      }
-
-      // Aplicar búsqueda
-      if (searchTerm) {
-        query = query.or(`titulo.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
-        console.log('🔍 Búsqueda aplicada:', searchTerm)
-      }
-
-      const { data, error } = await query
-
-      if (error) {
-        console.error('❌ Error en consulta completa:', error)
-        throw error
-      }
-      
-      console.log('✅ Consulta completa exitosa, incidencias cargadas:', data?.length || 0)
-      setIncidencias(data || [])
-      
-    } catch (error) {
-      console.error('❌ Error en consulta completa, intentando fallback...', error)
-      
-      // Fallback: cargar solo incidencias básicas
-      try {
-        console.log('🔄 Ejecutando consulta de fallback (solo incidencias básicas)...')
-        
-        let fallbackQuery = supabase
-          .from('incidencias')
-          .select('*')
-          .eq('usuario_id', user?.id)
-          .order('created_at', { ascending: false })
-
-        // Aplicar filtros básicos
-        if (selectedFilter.estado !== 'todas') {
-          fallbackQuery = fallbackQuery.eq('estado', selectedFilter.estado)
-        }
-        if (selectedFilter.prioridad !== 'todas') {
-          fallbackQuery = fallbackQuery.eq('prioridad', selectedFilter.prioridad)
-        }
-        if (selectedFilter.categoria !== 'todas') {
-          fallbackQuery = fallbackQuery.eq('categoria_id', parseInt(selectedFilter.categoria))
-        }
-        if (searchTerm) {
-          fallbackQuery = fallbackQuery.or(`titulo.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
-        }
-
-        const { data: fallbackData, error: fallbackError } = await fallbackQuery
-
-        if (fallbackError) {
-          console.error('❌ Error en consulta de fallback:', fallbackError)
-          throw fallbackError
-        }
-
-        console.log('✅ Consulta de fallback exitosa, incidencias cargadas:', fallbackData?.length || 0)
-        setIncidencias(fallbackData || [])
-        
-        // Mostrar advertencia al usuario
-        toast.error('Algunas funciones pueden estar limitadas. Datos básicos cargados correctamente.')
-        
-      } catch (fallbackError) {
-        console.error('❌ Error crítico en ambas consultas:', fallbackError)
-        setIncidencias([])
-        toast.error('Error al cargar las incidencias. Por favor, recarga la página.')
-      }
+  const loadIncidencias = () => {
+    // Filtrar incidencias según los filtros aplicados
+    let incidenciasFiltradas = [...datosDemo.incidencias]
+    
+    // Aplicar filtros
+    if (selectedFilter.estado !== 'todas') {
+      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.estado === selectedFilter.estado)
     }
+    if (selectedFilter.prioridad !== 'todas') {
+      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === selectedFilter.prioridad)
+    }
+    if (selectedFilter.categoria !== 'todas') {
+      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === parseInt(selectedFilter.categoria))
+    }
+
+    // Aplicar búsqueda
+    if (searchTerm) {
+      incidenciasFiltradas = incidenciasFiltradas.filter(inc => 
+        inc.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inc.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    setIncidencias(incidenciasFiltradas)
   }
 
   const getEstadoIcon = (estado: string) => {

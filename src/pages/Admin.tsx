@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BarChart3, Settings, Database, Users, MessageSquare, TrendingUp, Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../store/authStore'
 import type { Categoria } from '../types/database'
 
 interface SystemStats {
@@ -21,19 +21,65 @@ interface CategoryStats {
   resueltas: number
 }
 
+// Datos de demostración
+const DEMO_CATEGORIAS: Categoria[] = [
+  {
+    id: '1',
+    nombre: 'Hardware',
+    descripcion: 'Problemas relacionados con equipos físicos',
+    activa: true,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: '2',
+    nombre: 'Software',
+    descripcion: 'Problemas con aplicaciones y sistemas operativos',
+    activa: true,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: '3',
+    nombre: 'Red',
+    descripcion: 'Problemas de conectividad y red',
+    activa: true,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: '4',
+    nombre: 'Seguridad',
+    descripcion: 'Incidentes de seguridad informática',
+    activa: false,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  }
+]
+
+const DEMO_STATS: SystemStats = {
+  totalIncidencias: 45,
+  incidenciasAbiertas: 12,
+  incidenciasResueltas: 33,
+  totalUsuarios: 25,
+  usuariosActivos: 22,
+  totalCategorias: 4,
+  promedioResolucion: 2.5
+}
+
+const DEMO_CATEGORY_STATS: CategoryStats[] = [
+  { categoria: 'Hardware', total: 18, abiertas: 5, resueltas: 13 },
+  { categoria: 'Software', total: 15, abiertas: 4, resueltas: 11 },
+  { categoria: 'Red', total: 8, abiertas: 2, resueltas: 6 },
+  { categoria: 'Seguridad', total: 4, abiertas: 1, resueltas: 3 }
+]
+
 const Admin: React.FC = () => {
-  const [stats, setStats] = useState<SystemStats>({
-    totalIncidencias: 0,
-    incidenciasAbiertas: 0,
-    incidenciasResueltas: 0,
-    totalUsuarios: 0,
-    usuariosActivos: 0,
-    totalCategorias: 0,
-    promedioResolucion: 0
-  })
-  const [categoryStats, setCategoryStats] = useState<CategoryStats[]>([])
-  const [categorias, setCategorias] = useState<Categoria[]>([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuthStore()
+  const [stats, setStats] = useState<SystemStats>(DEMO_STATS)
+  const [categoryStats, setCategoryStats] = useState<CategoryStats[]>(DEMO_CATEGORY_STATS)
+  const [categorias, setCategorias] = useState<Categoria[]>(DEMO_CATEGORIAS)
+  const [loading, setLoading] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Categoria | null>(null)
   const [categoryForm, setCategoryForm] = useState({
@@ -43,16 +89,19 @@ const Admin: React.FC = () => {
   })
 
   useEffect(() => {
-    loadData()
-  }, [])
+    if (user) {
+      loadData()
+    }
+  }, [user])
 
   const loadData = async () => {
     try {
-      await Promise.all([
-        loadSystemStats(),
-        loadCategoryStats(),
-        loadCategorias()
-      ])
+      setLoading(true)
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Los datos ya están cargados desde DEMO_STATS, DEMO_CATEGORY_STATS y DEMO_CATEGORIAS
+      toast.success('Datos actualizados')
     } catch (error) {
       console.error('Error loading admin data:', error)
       toast.error('Error al cargar los datos del panel')
@@ -61,117 +110,17 @@ const Admin: React.FC = () => {
     }
   }
 
+  // Funciones convertidas a modo demo - ya no necesarias pero mantenidas para compatibilidad
   const loadSystemStats = async () => {
-    try {
-      // Obtener estadísticas de incidencias
-      const { data: incidencias, error: incidenciasError } = await supabase
-        .from('incidencias')
-        .select('estado, created_at, updated_at')
-
-      if (incidenciasError) throw incidenciasError
-
-      // Obtener estadísticas de usuarios
-      const { data: usuarios, error: usuariosError } = await supabase
-        .from('usuarios')
-        .select('activo')
-
-      if (usuariosError) throw usuariosError
-
-      // Obtener estadísticas de categorías
-      const { data: categorias, error: categoriasError } = await supabase
-        .from('categorias')
-        .select('activo')
-
-      if (categoriasError) throw categoriasError
-
-      // Calcular estadísticas
-      const totalIncidencias = incidencias?.length || 0
-      const incidenciasAbiertas = incidencias?.filter(i => i.estado === 'abierta' || i.estado === 'en_progreso').length || 0
-      const incidenciasResueltas = incidencias?.filter(i => i.estado === 'resuelta' || i.estado === 'cerrada').length || 0
-      const totalUsuarios = usuarios?.length || 0
-      const usuariosActivos = usuarios?.filter(u => u.activo).length || 0
-      const totalCategorias = categorias?.length || 0
-
-      // Calcular promedio de resolución (días)
-      const incidenciasConResolucion = incidencias?.filter(i => 
-        (i.estado === 'resuelta' || i.estado === 'cerrada') && i.updated_at
-      ) || []
-      
-      let promedioResolucion = 0
-      if (incidenciasConResolucion.length > 0) {
-        const tiemposResolucion = incidenciasConResolucion.map(i => {
-          const created = new Date(i.created_at)
-          const resolved = new Date(i.updated_at)
-          return (resolved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24) // días
-        })
-        promedioResolucion = tiemposResolucion.reduce((a, b) => a + b, 0) / tiemposResolucion.length
-      }
-
-      setStats({
-        totalIncidencias,
-        incidenciasAbiertas,
-        incidenciasResueltas,
-        totalUsuarios,
-        usuariosActivos,
-        totalCategorias,
-        promedioResolucion: Math.round(promedioResolucion * 10) / 10
-      })
-    } catch (error) {
-      console.error('Error loading system stats:', error)
-    }
+    // Los datos ya están cargados desde DEMO_STATS
   }
 
   const loadCategoryStats = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('incidencias')
-        .select(`
-          estado,
-          categorias(nombre)
-        `)
-
-      if (error) throw error
-
-      // Agrupar por categoría
-      const categoryMap = new Map<string, { total: number; abiertas: number; resueltas: number }>()
-      
-      data?.forEach(incidencia => {
-        const categoria = (incidencia as any).categorias?.nombre || 'Sin categoría'
-        const current = categoryMap.get(categoria) || { total: 0, abiertas: 0, resueltas: 0 }
-        
-        current.total++
-        if (incidencia.estado === 'abierta' || incidencia.estado === 'en_progreso') {
-          current.abiertas++
-        } else if (incidencia.estado === 'resuelta' || incidencia.estado === 'cerrada') {
-          current.resueltas++
-        }
-        
-        categoryMap.set(categoria, current)
-      })
-
-      const categoryStatsArray = Array.from(categoryMap.entries()).map(([categoria, stats]) => ({
-        categoria,
-        ...stats
-      }))
-
-      setCategoryStats(categoryStatsArray)
-    } catch (error) {
-      console.error('Error loading category stats:', error)
-    }
+    // Los datos ya están cargados desde DEMO_CATEGORY_STATS
   }
 
   const loadCategorias = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categorias')
-        .select('*')
-        .order('nombre')
-
-      if (error) throw error
-      setCategorias(data || [])
-    } catch (error) {
-      console.error('Error loading categories:', error)
-    }
+    // Los datos ya están cargados desde DEMO_CATEGORIAS
   }
 
   const saveCategory = async (e: React.FormEvent) => {
@@ -183,42 +132,53 @@ const Admin: React.FC = () => {
     }
 
     try {
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
       if (editingCategory) {
-        const { error } = await supabase
-          .from('categorias')
-          .update({
-            nombre: categoryForm.nombre.trim(),
-            descripcion: categoryForm.descripcion.trim(),
-            activa: categoryForm.activa,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingCategory.id)
-
-        if (error) throw error
+        // Actualizar categoría existente
+        const updatedCategorias = categorias.map(cat => 
+          cat.id === editingCategory.id 
+            ? {
+                ...cat,
+                nombre: categoryForm.nombre.trim(),
+                descripcion: categoryForm.descripcion.trim(),
+                activa: categoryForm.activa,
+                updated_at: new Date().toISOString()
+              }
+            : cat
+        )
+        setCategorias(updatedCategorias)
         toast.success('Categoría actualizada exitosamente')
       } else {
-        const { error } = await supabase
-          .from('categorias')
-          .insert({
-            nombre: categoryForm.nombre.trim(),
-            descripcion: categoryForm.descripcion.trim(),
-            activa: categoryForm.activa
-          })
-
-        if (error) throw error
+        // Verificar si ya existe una categoría con ese nombre
+        const existeCategoria = categorias.some(cat => 
+          cat.nombre.toLowerCase() === categoryForm.nombre.trim().toLowerCase()
+        )
+        
+        if (existeCategoria) {
+          toast.error('Ya existe una categoría con ese nombre')
+          return
+        }
+        
+        // Crear nueva categoría
+        const newCategory: Categoria = {
+          id: (categorias.length + 1).toString(),
+          nombre: categoryForm.nombre.trim(),
+          descripcion: categoryForm.descripcion.trim(),
+          activa: categoryForm.activa,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        setCategorias([...categorias, newCategory])
         toast.success('Categoría creada exitosamente')
       }
 
-      loadCategorias()
-      loadCategoryStats()
       closeCategoryModal()
     } catch (error: any) {
       console.error('Error saving category:', error)
-      if (error.code === '23505') {
-        toast.error('Ya existe una categoría con ese nombre')
-      } else {
-        toast.error('Error al guardar la categoría')
-      }
+      toast.error('Error al guardar la categoría')
     }
   }
 
@@ -228,23 +188,28 @@ const Admin: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('categorias')
-        .delete()
-        .eq('id', categoria.id)
-
-      if (error) throw error
-
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Verificar si la categoría tiene incidencias asociadas (simulado)
+      const categoryStats = DEMO_CATEGORY_STATS.find(stat => stat.categoria === categoria.nombre)
+      if (categoryStats && categoryStats.total > 0) {
+        toast.error('No se puede eliminar la categoría porque tiene incidencias asociadas')
+        return
+      }
+      
+      // Eliminar categoría
+      const updatedCategorias = categorias.filter(cat => cat.id !== categoria.id)
+      setCategorias(updatedCategorias)
+      
+      // Actualizar estadísticas de categorías
+      const updatedCategoryStats = categoryStats.filter(stat => stat.categoria !== categoria.nombre)
+      setCategoryStats(updatedCategoryStats)
+      
       toast.success('Categoría eliminada exitosamente')
-      loadCategorias()
-      loadCategoryStats()
     } catch (error: any) {
       console.error('Error deleting category:', error)
-      if (error.code === '23503') {
-        toast.error('No se puede eliminar la categoría porque tiene incidencias asociadas')
-      } else {
-        toast.error('Error al eliminar la categoría')
-      }
+      toast.error('Error al eliminar la categoría')
     }
   }
 
@@ -281,18 +246,48 @@ const Admin: React.FC = () => {
     try {
       toast.info('Preparando exportación...')
       
-      // Obtener todos los datos
-      const { data: incidencias, error } = await supabase
-        .from('incidencias')
-        .select(`
-          *,
-          categorias(nombre),
-          usuario:usuarios!incidencias_usuario_id_fkey(nombre, email),
-          asignado:usuarios!incidencias_asignado_a_fkey(nombre, email)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Datos de demostración para exportar
+      const demoIncidencias = [
+        {
+          id: '1',
+          titulo: 'Problema con impresora',
+          descripcion: 'La impresora no responde',
+          estado: 'abierta',
+          prioridad: 'media',
+          categoria: 'Hardware',
+          usuario: 'Juan Pérez',
+          asignado: 'Ana García',
+          created_at: '2024-01-15',
+          updated_at: '2024-01-15'
+        },
+        {
+          id: '2',
+          titulo: 'Error en sistema',
+          descripcion: 'El sistema se cierra inesperadamente',
+          estado: 'en_progreso',
+          prioridad: 'alta',
+          categoria: 'Software',
+          usuario: 'María López',
+          asignado: 'Carlos Ruiz',
+          created_at: '2024-01-14',
+          updated_at: '2024-01-16'
+        },
+        {
+          id: '3',
+          titulo: 'Conexión lenta',
+          descripcion: 'La conexión a internet está muy lenta',
+          estado: 'resuelta',
+          prioridad: 'baja',
+          categoria: 'Red',
+          usuario: 'Pedro Martín',
+          asignado: 'Ana García',
+          created_at: '2024-01-13',
+          updated_at: '2024-01-17'
+        }
+      ]
 
       // Convertir a CSV
       const csvHeaders = [
@@ -300,18 +295,18 @@ const Admin: React.FC = () => {
         'Usuario', 'Asignado', 'Fecha Creación', 'Última Actualización'
       ]
       
-      const csvRows = incidencias?.map(inc => [
+      const csvRows = demoIncidencias.map(inc => [
         inc.id,
         `"${inc.titulo}"`,
         `"${inc.descripcion}"`,
         inc.estado,
         inc.prioridad,
-        (inc as any).categorias?.nombre || '',
-        (inc as any).usuario?.nombre || '',
-        (inc as any).asignado?.nombre || '',
-        new Date(inc.created_at).toLocaleDateString('es-ES'),
-        new Date(inc.updated_at).toLocaleDateString('es-ES')
-      ]) || []
+        inc.categoria,
+        inc.usuario,
+        inc.asignado,
+        inc.created_at,
+        inc.updated_at
+      ])
 
       const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n')
       
@@ -320,7 +315,7 @@ const Admin: React.FC = () => {
       const link = document.createElement('a')
       const url = URL.createObjectURL(blob)
       link.setAttribute('href', url)
-      link.setAttribute('download', `incidencias_${new Date().toISOString().split('T')[0]}.csv`)
+      link.setAttribute('download', `incidencias_demo_${new Date().toISOString().split('T')[0]}.csv`)
       link.style.visibility = 'hidden'
       document.body.appendChild(link)
       link.click()

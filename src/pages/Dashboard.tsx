@@ -26,126 +26,162 @@ interface MetricCard {
 }
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuthStore()
+  const { user, sessionVerified, isAuthenticated } = useAuthStore()
   const { isPersonal, isSoporte, isAdmin } = useRole()
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [metricsLoading, setMetricsLoading] = useState(true)
+  const [incidenciasLoading, setIncidenciasLoading] = useState(true)
   const [recentIncidencias, setRecentIncidencias] = useState<any[]>([])
 
+  // Efecto para cargar datos cuando el usuario esté autenticado
   useEffect(() => {
-    loadDashboardData()
-  }, [user])
+    // Cargar datos si hay usuario autenticado, independientemente de sessionVerified
+    // Esto permite cargar datos inmediatamente después del refresh desde localStorage
+    if (user && isAuthenticated) {
+      console.log('🔄 [DASHBOARD] Loading dashboard data for user:', user.email)
+      loadDashboardData()
+    }
+  }, [user, isAuthenticated])
+
+  // Efecto adicional para recargar datos cuando la sesión se verifica completamente
+  useEffect(() => {
+    if (user && sessionVerified && isAuthenticated && !metricsLoading && !incidenciasLoading) {
+      console.log('🔄 [DASHBOARD] Session verified, refreshing data if needed')
+      // Solo recargar si no hay datos o si han pasado más de 5 minutos
+      const shouldRefresh = !metrics || !recentIncidencias || recentIncidencias.length === 0
+      if (shouldRefresh) {
+        loadDashboardData()
+      }
+    }
+  }, [sessionVerified])
+
+  // Timeout de seguridad para evitar loading infinito
+  useEffect(() => {
+    if (metricsLoading || incidenciasLoading) {
+      const timeoutId = setTimeout(() => {
+        console.warn('🔄 [DASHBOARD] Timeout de carga alcanzado, forzando fin del loading')
+        setMetricsLoading(false)
+        setIncidenciasLoading(false)
+      }, 10000) // 10 segundos timeout
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [metricsLoading, incidenciasLoading])
+
+  // Efecto para manejar casos donde no hay autenticación
+  useEffect(() => {
+    if (sessionVerified && !isAuthenticated) {
+      console.log('🔄 [DASHBOARD] Session verified but not authenticated, stopping loading')
+      setMetricsLoading(false)
+      setIncidenciasLoading(false)
+    }
+  }, [sessionVerified, isAuthenticated])
 
   const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-      
-      // Cargar métricas según el rol del usuario
-      if (isPersonal) {
-        await loadPersonalMetrics()
-      } else {
-        await loadGeneralMetrics()
-      }
-      
-      await loadRecentIncidencias()
-    } catch (error) {
-      console.error('Error cargando datos del dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
+    // Cargar métricas y incidencias en paralelo para mejor rendimiento
+    const metricsPromise = isPersonal ? loadPersonalMetrics() : loadGeneralMetrics()
+    const incidenciasPromise = loadRecentIncidencias()
+    
+    // Ejecutar ambas consultas en paralelo
+    await Promise.allSettled([metricsPromise, incidenciasPromise])
   }
 
   const loadPersonalMetrics = async () => {
-    if (!user) return
-
-    const { data: incidencias, error } = await supabase
-      .from('incidencias')
-      .select('*')
-      .eq('usuario_id', user.id)
-
-    if (error) {
-      console.error('Error cargando incidencias personales:', error)
-      return
+    try {
+      setMetricsLoading(true)
+      
+      // Datos de demostración para métricas personales
+      setMetrics({
+        totalIncidencias: 8,
+        incidenciasAbiertas: 2,
+        incidenciasEnProgreso: 3,
+        incidenciasResueltas: 2,
+        incidenciasCerradas: 1,
+        incidenciasPorPrioridad: {
+          baja: 2,
+          media: 3,
+          alta: 2,
+          critica: 1
+        },
+        promedioResolucion: 0
+      })
+    } catch (error) {
+      console.error('Error cargando métricas personales:', error)
+    } finally {
+      setMetricsLoading(false)
     }
-
-    const totalIncidencias = incidencias?.length || 0
-    const abiertas = incidencias?.filter(i => i.estado === 'abierta').length || 0
-    const enProgreso = incidencias?.filter(i => i.estado === 'en_progreso').length || 0
-    const resueltas = incidencias?.filter(i => i.estado === 'resuelta').length || 0
-    const cerradas = incidencias?.filter(i => i.estado === 'cerrada').length || 0
-
-    setMetrics({
-      totalIncidencias,
-      incidenciasAbiertas: abiertas,
-      incidenciasEnProgreso: enProgreso,
-      incidenciasResueltas: resueltas,
-      incidenciasCerradas: cerradas,
-      incidenciasPorPrioridad: {
-        baja: incidencias?.filter(i => i.prioridad === 'baja').length || 0,
-        media: incidencias?.filter(i => i.prioridad === 'media').length || 0,
-        alta: incidencias?.filter(i => i.prioridad === 'alta').length || 0,
-        critica: incidencias?.filter(i => i.prioridad === 'critica').length || 0
-      },
-      promedioResolucion: 0
-    })
   }
 
   const loadGeneralMetrics = async () => {
-    const { data: incidencias, error } = await supabase
-      .from('incidencias')
-      .select('*')
-
-    if (error) {
-      console.error('Error cargando incidencias generales:', error)
-      return
+    try {
+      setMetricsLoading(true)
+      
+      // Datos de demostración para métricas generales
+      setMetrics({
+        totalIncidencias: 45,
+        incidenciasAbiertas: 12,
+        incidenciasEnProgreso: 18,
+        incidenciasResueltas: 10,
+        incidenciasCerradas: 5,
+        incidenciasPorPrioridad: {
+          baja: 15,
+          media: 18,
+          alta: 8,
+          critica: 4
+        },
+        promedioResolucion: 0
+      })
+    } catch (error) {
+      console.error('Error cargando métricas generales:', error)
+    } finally {
+      setMetricsLoading(false)
     }
-
-    const totalIncidencias = incidencias?.length || 0
-    const abiertas = incidencias?.filter(i => i.estado === 'abierta').length || 0
-    const enProgreso = incidencias?.filter(i => i.estado === 'en_progreso').length || 0
-    const resueltas = incidencias?.filter(i => i.estado === 'resuelta').length || 0
-    const cerradas = incidencias?.filter(i => i.estado === 'cerrada').length || 0
-
-    setMetrics({
-      totalIncidencias,
-      incidenciasAbiertas: abiertas,
-      incidenciasEnProgreso: enProgreso,
-      incidenciasResueltas: resueltas,
-      incidenciasCerradas: cerradas,
-      incidenciasPorPrioridad: {
-        baja: incidencias?.filter(i => i.prioridad === 'baja').length || 0,
-        media: incidencias?.filter(i => i.prioridad === 'media').length || 0,
-        alta: incidencias?.filter(i => i.prioridad === 'alta').length || 0,
-        critica: incidencias?.filter(i => i.prioridad === 'critica').length || 0
-      },
-      promedioResolucion: 0
-    })
   }
 
   const loadRecentIncidencias = async () => {
-    let query = supabase
-      .from('incidencias')
-      .select(`
-        *,
-        usuario:usuarios(nombre),
-        categoria:categorias(nombre)
-      `)
-      .order('created_at', { ascending: false })
-      .limit(5)
+    try {
+      setIncidenciasLoading(true)
+      
+      // Datos de demostración para incidencias recientes
+      const demoIncidencias = [
+        {
+          id: 1,
+          titulo: 'Problema con el sistema de autenticación',
+          descripcion: 'Los usuarios no pueden iniciar sesión',
+          estado: 'abierta',
+          prioridad: 'alta',
+          created_at: new Date().toISOString(),
+          usuario: { nombre: 'Juan Pérez' },
+          categoria: { nombre: 'Sistema' }
+        },
+        {
+          id: 2,
+          titulo: 'Error en la base de datos',
+          descripcion: 'Consultas lentas en la base de datos',
+          estado: 'en_progreso',
+          prioridad: 'media',
+          created_at: new Date(Date.now() - 3600000).toISOString(),
+          usuario: { nombre: 'María García' },
+          categoria: { nombre: 'Base de Datos' }
+        },
+        {
+          id: 3,
+          titulo: 'Interfaz no responde',
+          descripcion: 'La interfaz se congela al cargar datos',
+          estado: 'resuelta',
+          prioridad: 'baja',
+          created_at: new Date(Date.now() - 7200000).toISOString(),
+          usuario: { nombre: 'Carlos López' },
+          categoria: { nombre: 'Frontend' }
+        }
+      ]
 
-    // Si es personal, solo mostrar sus incidencias
-    if (isPersonal && user) {
-      query = query.eq('usuario_id', user.id)
-    }
-
-    const { data, error } = await query
-
-    if (error) {
+      setRecentIncidencias(demoIncidencias)
+    } catch (error) {
       console.error('Error cargando incidencias recientes:', error)
-      return
+    } finally {
+      setIncidenciasLoading(false)
     }
-
-    setRecentIncidencias(data || [])
   }
 
   const getMetricCards = (): MetricCard[] => {
@@ -211,13 +247,7 @@ const Dashboard: React.FC = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+  // Modo demo - sin validación de sesión
 
   return (
     <div className="space-y-6">
@@ -242,44 +272,63 @@ const Dashboard: React.FC = () => {
 
       {/* Métricas principales */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {getMetricCards().map((card, index) => {
-          const Icon = card.icon
-          return (
-            <div key={index} className="bg-white overflow-hidden shadow rounded-lg">
+        {metricsLoading ? (
+          // Skeleton loading para métricas
+          Array.from({ length: 4 }).map((_, index) => (
+            <div key={index} className="bg-white overflow-hidden shadow rounded-lg animate-pulse">
               <div className="p-5">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
-                    <div className={`${card.color} p-3 rounded-md`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
+                    <div className="bg-gray-300 p-3 rounded-md w-12 h-12"></div>
                   </div>
                   <div className="ml-5 w-0 flex-1">
-                    <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
-                        {card.title}
-                      </dt>
-                      <dd className="text-lg font-medium text-gray-900">
-                        {card.value}
-                      </dd>
-                    </dl>
+                    <div className="h-4 bg-gray-300 rounded mb-2"></div>
+                    <div className="h-6 bg-gray-300 rounded w-16"></div>
                   </div>
                 </div>
               </div>
-              {card.trend && (
-                <div className="bg-gray-50 px-5 py-3">
-                  <div className="text-sm">
-                    <span className={`font-medium ${
-                      card.trend.isPositive ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {card.trend.isPositive ? '+' : ''}{card.trend.value}%
-                    </span>
-                    <span className="text-gray-500"> vs mes anterior</span>
+            </div>
+          ))
+        ) : (
+          getMetricCards().map((card, index) => {
+            const Icon = card.icon
+            return (
+              <div key={index} className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="p-5">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className={`${card.color} p-3 rounded-md`}>
+                        <Icon className="h-6 w-6 text-white" />
+                      </div>
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">
+                          {card.title}
+                        </dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          {card.value}
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
-          )
-        })}
+                {card.trend && (
+                  <div className="bg-gray-50 px-5 py-3">
+                    <div className="text-sm">
+                      <span className={`font-medium ${
+                        card.trend.isPositive ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {card.trend.isPositive ? '+' : ''}{card.trend.value}%
+                      </span>
+                      <span className="text-gray-500"> vs mes anterior</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Gráficos y estadísticas */}
@@ -288,23 +337,39 @@ const Dashboard: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Incidencias por Prioridad</h3>
           <div className="space-y-3">
-            {metrics && [
-              { prioridad: 'critica', cantidad: metrics.incidenciasPorPrioridad.critica, color: 'bg-red-500' },
-              { prioridad: 'alta', cantidad: metrics.incidenciasPorPrioridad.alta, color: 'bg-orange-500' },
-              { prioridad: 'media', cantidad: metrics.incidenciasPorPrioridad.media, color: 'bg-yellow-500' },
-              { prioridad: 'baja', cantidad: metrics.incidenciasPorPrioridad.baja, color: 'bg-green-500' }
-            ].map(({ prioridad, cantidad, color }) => (
-              <div key={prioridad} className="flex items-center justify-between py-2">
-                <div className="flex items-center">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                    getPriorityColor(prioridad)
-                  }`}>
-                    {prioridad}
-                  </span>
+            {metricsLoading ? (
+              // Skeleton loading para prioridades
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="flex items-center justify-between py-2 animate-pulse">
+                  <div className="flex items-center">
+                    <div className="h-5 bg-gray-300 rounded-full w-16"></div>
+                  </div>
+                  <div className="h-4 bg-gray-300 rounded w-8"></div>
                 </div>
-                <span className="text-sm font-medium text-gray-900">{cantidad}</span>
+              ))
+            ) : metrics ? (
+              [
+                { prioridad: 'critica', cantidad: metrics.incidenciasPorPrioridad.critica, color: 'bg-red-500' },
+                { prioridad: 'alta', cantidad: metrics.incidenciasPorPrioridad.alta, color: 'bg-orange-500' },
+                { prioridad: 'media', cantidad: metrics.incidenciasPorPrioridad.media, color: 'bg-yellow-500' },
+                { prioridad: 'baja', cantidad: metrics.incidenciasPorPrioridad.baja, color: 'bg-green-500' }
+              ].map(({ prioridad, cantidad, color }) => (
+                <div key={prioridad} className="flex items-center justify-between py-2">
+                  <div className="flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
+                      getPriorityColor(prioridad)
+                    }`}>
+                      {prioridad}
+                    </span>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900">{cantidad}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No se pudieron cargar las métricas</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -312,46 +377,83 @@ const Dashboard: React.FC = () => {
         <div className="bg-white shadow rounded-lg p-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Actividad Reciente</h3>
           <div className="flow-root">
-            <ul className="-mb-8">
-              {recentIncidencias.map((incidencia, index) => (
-                <li key={incidencia.id}>
-                  <div className="relative pb-8">
-                    {index !== recentIncidencias.length - 1 && (
-                      <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
-                    )}
-                    <div className="relative flex space-x-3">
-                      <div>
-                        <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
-                          <MessageSquare className="h-4 w-4 text-white" />
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+            {incidenciasLoading ? (
+              // Skeleton loading para actividad reciente
+              <ul className="-mb-8">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <li key={index}>
+                    <div className="relative pb-8">
+                      {index !== 2 && (
+                        <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
+                      )}
+                      <div className="relative flex space-x-3 animate-pulse">
                         <div>
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium text-gray-900">{incidencia.titulo}</span>
-                          </p>
-                          <div className="mt-1 flex items-center space-x-2">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              getEstadoColor(incidencia.estado)
-                            }`}>
-                              {incidencia.estado.replace('_', ' ')}
-                            </span>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              getPriorityColor(incidencia.prioridad)
-                            }`}>
-                              {incidencia.prioridad}
-                            </span>
-                          </div>
+                          <span className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center ring-8 ring-white">
+                          </span>
                         </div>
-                        <div className="text-right text-sm whitespace-nowrap text-gray-500">
-                          {new Date(incidencia.created_at).toLocaleDateString()}
+                        <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                          <div className="flex-1">
+                            <div className="h-4 bg-gray-300 rounded mb-2 w-3/4"></div>
+                            <div className="flex items-center space-x-2">
+                              <div className="h-5 bg-gray-300 rounded w-16"></div>
+                              <div className="h-5 bg-gray-300 rounded w-12"></div>
+                            </div>
+                          </div>
+                          <div className="h-4 bg-gray-300 rounded w-20"></div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            ) : recentIncidencias.length > 0 ? (
+              <ul className="-mb-8">
+                {recentIncidencias.map((incidencia, index) => (
+                  <li key={incidencia.id}>
+                    <div className="relative pb-8">
+                      {index !== recentIncidencias.length - 1 && (
+                        <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" />
+                      )}
+                      <div className="relative flex space-x-3">
+                        <div>
+                          <span className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center ring-8 ring-white">
+                            <MessageSquare className="h-4 w-4 text-white" />
+                          </span>
+                        </div>
+                        <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                          <div>
+                            <p className="text-sm text-gray-500">
+                              <span className="font-medium text-gray-900">{incidencia.titulo}</span>
+                            </p>
+                            <div className="mt-1 flex items-center space-x-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                getEstadoColor(incidencia.estado)
+                              }`}>
+                                {incidencia.estado.replace('_', ' ')}
+                              </span>
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                getPriorityColor(incidencia.prioridad)
+                              }`}>
+                                {incidencia.prioridad}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right text-sm whitespace-nowrap text-gray-500">
+                            {new Date(incidencia.created_at).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-center py-8">
+                <MessageSquare className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No hay actividad reciente</h3>
+                <p className="mt-1 text-sm text-gray-500">Las incidencias aparecerán aquí cuando se creen.</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

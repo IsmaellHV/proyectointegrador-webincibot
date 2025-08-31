@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { Search, Plus, Edit3, Trash2, UserCheck, UserX, Mail, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
-import { supabase } from '../lib/supabase'
 import type { Usuario } from '../types/database'
 
 interface UsuarioForm {
@@ -12,10 +11,59 @@ interface UsuarioForm {
   activo: boolean
 }
 
+// Datos de demostración para usuarios
+const DEMO_USUARIOS: Usuario[] = [
+  {
+    id: '1',
+    nombre: 'Ana García',
+    email: 'ana.garcia@empresa.com',
+    rol: 'administrador',
+    activo: true,
+    created_at: '2024-01-15T10:00:00Z',
+    updated_at: '2024-01-15T10:00:00Z'
+  },
+  {
+    id: '2',
+    nombre: 'Carlos López',
+    email: 'carlos.lopez@empresa.com',
+    rol: 'soporte',
+    activo: true,
+    created_at: '2024-01-20T14:30:00Z',
+    updated_at: '2024-01-20T14:30:00Z'
+  },
+  {
+    id: '3',
+    nombre: 'María Rodríguez',
+    email: 'maria.rodriguez@empresa.com',
+    rol: 'personal',
+    activo: true,
+    created_at: '2024-02-01T09:15:00Z',
+    updated_at: '2024-02-01T09:15:00Z'
+  },
+  {
+    id: '4',
+    nombre: 'Juan Pérez',
+    email: 'juan.perez@empresa.com',
+    rol: 'personal',
+    activo: false,
+    created_at: '2024-02-10T16:45:00Z',
+    updated_at: '2024-02-15T11:20:00Z'
+  },
+  {
+    id: '5',
+    nombre: 'Laura Martínez',
+    email: 'laura.martinez@empresa.com',
+    rol: 'soporte',
+    activo: true,
+    created_at: '2024-02-20T13:00:00Z',
+    updated_at: '2024-02-20T13:00:00Z'
+  }
+]
+
 const Usuarios: React.FC = () => {
   const { user } = useAuthStore()
-  const [usuarios, setUsuarios] = useState<Usuario[]>([])
-  const [loading, setLoading] = useState(true)
+  const [usuarios, setUsuarios] = useState<Usuario[]>(DEMO_USUARIOS)
+  const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRol, setSelectedRol] = useState('todos')
   const [selectedEstado, setSelectedEstado] = useState('todos')
@@ -31,24 +79,16 @@ const Usuarios: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    loadUsuarios()
+    // Simular carga inicial
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+    }, 500)
   }, [])
 
-  const loadUsuarios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('usuarios')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setUsuarios(data || [])
-    } catch (error) {
-      console.error('Error loading users:', error)
-      toast.error('Error al cargar los usuarios')
-    } finally {
-      setLoading(false)
-    }
+  const loadUsuarios = () => {
+    // En modo demo, los datos ya están cargados
+    setUsuarios([...DEMO_USUARIOS])
   }
 
   const validateForm = (): boolean => {
@@ -85,46 +125,46 @@ const Usuarios: React.FC = () => {
     if (!validateForm()) return
 
     setSubmitting(true)
+    
+    // Simular delay de red
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    
     try {
       if (editingUser) {
         // Actualizar usuario existente
-        const { error } = await supabase
-          .from('usuarios')
-          .update({
-            nombre: formData.nombre.trim(),
-            email: formData.email.trim().toLowerCase(),
-            rol: formData.rol,
-            activo: formData.activo,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingUser.id)
-
-        if (error) throw error
+        const updatedUsuarios = usuarios.map(u => 
+          u.id === editingUser.id 
+            ? {
+                ...u,
+                nombre: formData.nombre.trim(),
+                email: formData.email.trim().toLowerCase(),
+                rol: formData.rol,
+                activo: formData.activo,
+                updated_at: new Date().toISOString()
+              }
+            : u
+        )
+        setUsuarios(updatedUsuarios)
         toast.success('Usuario actualizado exitosamente')
       } else {
         // Crear nuevo usuario
-        const { error } = await supabase
-          .from('usuarios')
-          .insert({
-            nombre: formData.nombre.trim(),
-            email: formData.email.trim().toLowerCase(),
-            rol: formData.rol,
-            activo: formData.activo
-          })
-
-        if (error) throw error
+        const newUser: Usuario = {
+          id: Date.now().toString(),
+          nombre: formData.nombre.trim(),
+          email: formData.email.trim().toLowerCase(),
+          rol: formData.rol,
+          activo: formData.activo,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        setUsuarios([newUser, ...usuarios])
         toast.success('Usuario creado exitosamente')
       }
 
-      loadUsuarios()
       closeModal()
     } catch (error: any) {
       console.error('Error saving user:', error)
-      if (error.code === '23505') {
-        toast.error('Este email ya está registrado')
-      } else {
-        toast.error('Error al guardar el usuario')
-      }
+      toast.error('Error al guardar el usuario')
     } finally {
       setSubmitting(false)
     }
@@ -132,18 +172,20 @@ const Usuarios: React.FC = () => {
 
   const toggleUserStatus = async (usuario: Usuario) => {
     try {
-      const { error } = await supabase
-        .from('usuarios')
-        .update({ 
-          activo: !usuario.activo,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', usuario.id)
-
-      if (error) throw error
-
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const updatedUsuarios = usuarios.map(u => 
+        u.id === usuario.id 
+          ? {
+              ...u,
+              activo: !u.activo,
+              updated_at: new Date().toISOString()
+            }
+          : u
+      )
+      setUsuarios(updatedUsuarios)
       toast.success(`Usuario ${!usuario.activo ? 'activado' : 'desactivado'} exitosamente`)
-      loadUsuarios()
     } catch (error) {
       console.error('Error toggling user status:', error)
       toast.error('Error al cambiar el estado del usuario')
@@ -156,22 +198,15 @@ const Usuarios: React.FC = () => {
     }
 
     try {
-      const { error } = await supabase
-        .from('usuarios')
-        .delete()
-        .eq('id', usuario.id)
-
-      if (error) throw error
-
+      // Simular delay de red
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      const updatedUsuarios = usuarios.filter(u => u.id !== usuario.id)
+      setUsuarios(updatedUsuarios)
       toast.success('Usuario eliminado exitosamente')
-      loadUsuarios()
     } catch (error: any) {
       console.error('Error deleting user:', error)
-      if (error.code === '23503') {
-        toast.error('No se puede eliminar el usuario porque tiene incidencias asociadas')
-      } else {
-        toast.error('Error al eliminar el usuario')
-      }
+      toast.error('Error al eliminar el usuario')
     }
   }
 

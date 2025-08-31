@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 const loginSchema = z.object({
   email: z.string().min(1, 'El email es requerido').email('Formato de email inválido'),
   password: z.string().min(1, 'La contraseña es requerida').min(6, 'La contraseña debe tener al menos 6 caracteres'),
+  recordarPassword: z.boolean().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -25,14 +26,22 @@ const Login: React.FC = () => {
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
+    setValue,
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
 
-  // Limpiar errores cuando el componente se monta
+  // Limpiar errores cuando el componente se monta y cargar datos guardados
   useEffect(() => {
     clearError();
-  }, []);
+
+    // Cargar email guardado si existe
+    const emailGuardado = localStorage.getItem('recordarEmail');
+    if (emailGuardado) {
+      setValue('email', emailGuardado);
+      setValue('recordarPassword', true);
+    }
+  }, [clearError, setValue]);
 
   // Limpiar errores cuando el usuario empieza a escribir
   useEffect(() => {
@@ -43,6 +52,13 @@ const Login: React.FC = () => {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
+      // Manejar recordar contraseña
+      if (data.recordarPassword) {
+        localStorage.setItem('recordarEmail', data.email);
+      } else {
+        localStorage.removeItem('recordarEmail');
+      }
+
       const result = await login(data.email, data.password);
 
       if (result.success) {
@@ -107,6 +123,14 @@ const Login: React.FC = () => {
               )}
             </div>
 
+            {/* Checkbox Recordar Contraseña */}
+            <div className="flex items-center">
+              <input {...register('recordarPassword')} type="checkbox" id="recordarPassword" className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" disabled={isSubmitting || isLoading} />
+              <label htmlFor="recordarPassword" className="ml-2 block text-sm text-gray-700">
+                Recordar Usuario
+              </label>
+            </div>
+
             {/* Error general */}
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-md p-3">
@@ -132,6 +156,12 @@ const Login: React.FC = () => {
               )}
             </button>
           </form>
+
+          <div className="mt-4 text-center">
+            <button type="button" onClick={() => navigate('/recuperar-password')} className="text-blue-600 hover:text-blue-700 font-medium text-sm focus:outline-none focus:underline">
+              ¿Olvidaste tu contraseña?
+            </button>
+          </div>
 
           {/* Enlaces adicionales */}
           <div className="mt-6 text-center">

@@ -32,3 +32,4 @@ vercel.json
 docker-compose.yml
 coverage
 __tests__
+__supabase__

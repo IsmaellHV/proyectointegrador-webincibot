@@ -1,14 +1,152 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, User, Clock, MessageSquare, CheckCircle, AlertTriangle, Eye, Edit3 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAuthStore } from '../store/authStore'
-import { supabase } from '../lib/supabase'
 import type { Incidencia, Categoria, Respuesta } from '../types/database'
 
 const Soporte: React.FC = () => {
-  const { user } = useAuthStore()
-  const [incidencias, setIncidencias] = useState<Incidencia[]>([])
-  const [categorias, setCategorias] = useState<Categoria[]>([])
+  // Datos de demostración
+  const demoUser = {
+    id: '1',
+    nombre: 'Admin Soporte',
+    email: 'admin@incibot.com'
+  }
+
+  const demoUsuarios = [
+    { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+    { id: '2', nombre: 'Juan Pérez', email: 'juan@empresa.com' },
+    { id: '3', nombre: 'María García', email: 'maria@empresa.com' },
+    { id: '4', nombre: 'Carlos López', email: 'carlos@empresa.com' },
+    { id: '5', nombre: 'Ana Martínez', email: 'ana@empresa.com' },
+    { id: '6', nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com' }
+  ]
+
+  const demoCategorias: Categoria[] = [
+    { id: 1, nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema', activo: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: 2, nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación', activo: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: 3, nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas', activo: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: 4, nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema', activo: true, created_at: '2024-01-01T00:00:00Z' }
+  ]
+
+  const demoIncidencias: Incidencia[] = [
+    {
+      id: 1,
+      titulo: 'Error al cargar dashboard',
+      descripcion: 'El dashboard principal no carga correctamente después del login. Se muestra una pantalla en blanco.',
+      estado: 'abierta' as const,
+      prioridad: 'alta' as const,
+      categoria_id: 1,
+      usuario_id: '2',
+      usuario_asignado: null,
+      asignado_a: null,
+      created_at: '2024-01-15T10:30:00Z',
+      updated_at: '2024-01-15T10:30:00Z',
+      categorias: { nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema' },
+      usuario: { nombre: 'Juan Pérez', email: 'juan@empresa.com' },
+      asignado: null,
+      respuestas: []
+    },
+    {
+      id: 2,
+      titulo: 'No puedo acceder al sistema',
+      descripcion: 'Cuando intento hacer login me dice que las credenciales son incorrectas, pero estoy seguro de que son correctas.',
+      estado: 'en_progreso' as const,
+      prioridad: 'media' as const,
+      categoria_id: 2,
+      usuario_id: '3',
+      usuario_asignado: '1',
+      asignado_a: '1',
+      created_at: '2024-01-14T14:20:00Z',
+      updated_at: '2024-01-15T09:15:00Z',
+      categorias: { nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación' },
+      usuario: { nombre: 'María García', email: 'maria@empresa.com' },
+      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      respuestas: [
+        {
+          id: 1,
+          incidencia_id: 2,
+          usuario_id: '1',
+          contenido: 'Hola María, voy a revisar tu cuenta. ¿Podrías confirmarme tu email registrado?',
+          tipo: 'respuesta' as const,
+          created_at: '2024-01-15T09:15:00Z',
+          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+        }
+      ]
+    },
+    {
+      id: 3,
+      titulo: 'Función de reportes no funciona',
+      descripcion: 'Al intentar generar un reporte de incidencias, el sistema se queda cargando indefinidamente.',
+      estado: 'resuelta' as const,
+      prioridad: 'baja' as const,
+      categoria_id: 3,
+      usuario_id: '4',
+      usuario_asignado: '1',
+      asignado_a: '1',
+      created_at: '2024-01-13T16:45:00Z',
+      updated_at: '2024-01-14T11:30:00Z',
+      categorias: { nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas' },
+      usuario: { nombre: 'Carlos López', email: 'carlos@empresa.com' },
+      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      respuestas: [
+        {
+          id: 2,
+          incidencia_id: 3,
+          usuario_id: '1',
+          contenido: 'Hemos identificado el problema. Era un error en la consulta de la base de datos. Ya está solucionado.',
+          tipo: 'respuesta' as const,
+          created_at: '2024-01-14T11:30:00Z',
+          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+        }
+      ]
+    },
+    {
+      id: 4,
+      titulo: 'Sistema muy lento',
+      descripcion: 'El sistema está funcionando muy lento desde ayer. Las páginas tardan mucho en cargar.',
+      estado: 'cerrada' as const,
+      prioridad: 'critica' as const,
+      categoria_id: 4,
+      usuario_id: '5',
+      usuario_asignado: '1',
+      asignado_a: '1',
+      created_at: '2024-01-12T08:00:00Z',
+      updated_at: '2024-01-13T15:00:00Z',
+      categorias: { nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema' },
+      usuario: { nombre: 'Ana Martínez', email: 'ana@empresa.com' },
+      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      respuestas: [
+        {
+          id: 3,
+          incidencia_id: 4,
+          usuario_id: '1',
+          contenido: 'Hemos optimizado la base de datos y actualizado el servidor. El rendimiento debería haber mejorado significativamente.',
+          tipo: 'respuesta' as const,
+          created_at: '2024-01-13T15:00:00Z',
+          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+        }
+      ]
+    },
+    {
+      id: 5,
+      titulo: 'Error 500 al subir archivos',
+      descripcion: 'Cuando intento subir un archivo adjunto a una incidencia, me aparece un error 500.',
+      estado: 'abierta' as const,
+      prioridad: 'media' as const,
+      categoria_id: 1,
+      usuario_id: '6',
+      usuario_asignado: null,
+      asignado_a: null,
+      created_at: '2024-01-15T13:20:00Z',
+      updated_at: '2024-01-15T13:20:00Z',
+      categorias: { nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema' },
+      usuario: { nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com' },
+      asignado: null,
+      respuestas: []
+    }
+  ]
+
+  const [incidencias, setIncidencias] = useState<Incidencia[]>(demoIncidencias)
+  const [categorias, setCategorias] = useState<Categoria[]>(demoCategorias)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedFilter, setSelectedFilter] = useState({
@@ -25,19 +163,20 @@ const Soporte: React.FC = () => {
   const [loadingRespuesta, setLoadingRespuesta] = useState(false)
 
   useEffect(() => {
-    loadData()
+    cargarDatos()
   }, [])
 
   useEffect(() => {
     loadIncidencias()
   }, [selectedFilter, searchTerm])
 
-  const loadData = async () => {
+  const cargarDatos = async () => {
     try {
-      await Promise.all([
-        loadCategorias(),
-        loadIncidencias()
-      ])
+      // Simular carga asíncrona
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Los datos ya están inicializados en el estado
+      loadIncidencias()
     } catch (error) {
       console.error('Error loading data:', error)
       toast.error('Error al cargar los datos')
@@ -46,107 +185,84 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const loadCategorias = async () => {
+  const loadIncidencias = () => {
     try {
-      const { data, error } = await supabase
-        .from('categorias')
-        .select('*')
-        .eq('activo', true)
-        .order('nombre')
-
-      if (error) throw error
-      setCategorias(data || [])
-    } catch (error) {
-      console.error('Error loading categories:', error)
-    }
-  }
-
-  const loadIncidencias = async () => {
-    try {
-      let query = supabase
-        .from('incidencias')
-        .select(`
-          *,
-          categorias(nombre, descripcion),
-          usuario:usuarios!incidencias_usuario_id_fkey(nombre, email),
-          asignado:usuarios!incidencias_usuario_asignado_fkey(nombre, email),
-          respuestas(count)
-        `)
-        .order('created_at', { ascending: false })
+      let incidenciasFiltradas = [...demoIncidencias]
 
       // Aplicar filtros
       if (selectedFilter.estado !== 'todas') {
-        query = query.eq('estado', selectedFilter.estado)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.estado === selectedFilter.estado)
       }
       if (selectedFilter.prioridad !== 'todas') {
-        query = query.eq('prioridad', selectedFilter.prioridad)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === selectedFilter.prioridad)
       }
       if (selectedFilter.categoria !== 'todas') {
-        query = query.eq('categoria_id', parseInt(selectedFilter.categoria))
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === parseInt(selectedFilter.categoria))
       }
       if (selectedFilter.asignacion === 'mis_asignadas') {
-        query = query.eq('usuario_asignado', user?.id)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.usuario_asignado === demoUser.id)
       } else if (selectedFilter.asignacion === 'sin_asignar') {
-        query = query.is('usuario_asignado', null)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => !inc.usuario_asignado)
       }
 
       // Aplicar búsqueda
       if (searchTerm) {
-        query = query.or(`titulo.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
+        const searchLower = searchTerm.toLowerCase()
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => 
+          inc.titulo.toLowerCase().includes(searchLower) ||
+          inc.descripcion.toLowerCase().includes(searchLower)
+        )
       }
 
-      const { data, error } = await query
+      // Ordenar por fecha de creación (más recientes primero)
+      incidenciasFiltradas.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-      if (error) throw error
-      setIncidencias(data || [])
+      setIncidencias(incidenciasFiltradas)
     } catch (error) {
       console.error('Error loading incidents:', error)
       toast.error('Error al cargar las incidencias')
     }
   }
 
-  const loadRespuestas = async (incidenciaId: number) => {
+  const loadRespuestas = (incidenciaId: number) => {
     try {
-      const { data, error } = await supabase
-        .from('respuestas')
-        .select(`
-          *,
-          usuario:usuarios(nombre, email)
-        `)
-        .eq('incidencia_id', incidenciaId)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      setRespuestas(data || [])
+      // Buscar la incidencia en los datos demo
+      const incidencia = demoIncidencias.find(inc => inc.id === incidenciaId)
+      const respuestasIncidencia = incidencia?.respuestas || []
+      
+      // Ordenar por fecha de creación (más antiguas primero)
+      const respuestasOrdenadas = respuestasIncidencia.sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+      
+      setRespuestas(respuestasOrdenadas)
     } catch (error) {
       console.error('Error loading responses:', error)
       toast.error('Error al cargar las respuestas')
     }
   }
 
-  const asignarIncidencia = async (incidenciaId: number) => {
+  const asignarIncidencia = (incidenciaId: number) => {
     try {
-      const { error } = await supabase
-        .from('incidencias')
-        .update({ 
-          usuario_asignado: user?.id,
-          estado: 'en_progreso',
+      // Encontrar la incidencia en los datos demo
+      const incidenciaIndex = demoIncidencias.findIndex(inc => inc.id === incidenciaId)
+      if (incidenciaIndex !== -1) {
+        // Actualizar la incidencia en los datos demo
+        demoIncidencias[incidenciaIndex] = {
+          ...demoIncidencias[incidenciaIndex],
+          usuario_asignado: demoUser.id,
+          asignado: { nombre: demoUser.nombre, email: demoUser.email },
+          estado: 'en_progreso' as const,
           updated_at: new Date().toISOString()
-        })
-        .eq('id', incidenciaId)
-
-      if (error) throw error
-
-      toast.success('Incidencia asignada exitosamente')
-      loadIncidencias()
-      
-      // Actualizar la incidencia seleccionada si está abierta
-      if (Number(selectedIncidencia?.id) === incidenciaId) {
-        setSelectedIncidencia(prev => prev ? {
-          ...prev,
-          usuario_asignado: user?.id,
-          estado: 'en_progreso'
-        } : null)
+        }
+        
+        toast.success('Incidencia asignada correctamente')
+        loadIncidencias()
+        
+        // Actualizar la incidencia seleccionada si es la misma
+        if (selectedIncidencia?.id === incidenciaId) {
+          setSelectedIncidencia(demoIncidencias[incidenciaIndex])
+        }
       }
     } catch (error) {
       console.error('Error assigning incident:', error)
@@ -156,25 +272,23 @@ const Soporte: React.FC = () => {
 
   const cambiarEstado = async (incidenciaId: number, nuevoEstado: string) => {
     try {
-      const { error } = await supabase
-        .from('incidencias')
-        .update({ 
-          estado: nuevoEstado,
+      // Encontrar la incidencia en los datos demo
+      const incidenciaIndex = demoIncidencias.findIndex(inc => inc.id === incidenciaId)
+      if (incidenciaIndex !== -1) {
+        // Actualizar la incidencia en los datos demo
+        demoIncidencias[incidenciaIndex] = {
+          ...demoIncidencias[incidenciaIndex],
+          estado: nuevoEstado as 'abierta' | 'en_progreso' | 'resuelta' | 'cerrada',
           updated_at: new Date().toISOString()
-        })
-        .eq('id', incidenciaId)
-
-      if (error) throw error
-
-      toast.success(`Estado cambiado a ${nuevoEstado.replace('_', ' ')}`)
-      loadIncidencias()
-      
-      // Actualizar la incidencia seleccionada si está abierta
-      if (Number(selectedIncidencia?.id) === incidenciaId) {
-        setSelectedIncidencia(prev => prev ? {
-          ...prev,
-          estado: nuevoEstado as 'abierta' | 'en_progreso' | 'resuelta' | 'cerrada'
-        } : null)
+        }
+        
+        toast.success(`Estado cambiado a ${nuevoEstado.replace('_', ' ')}`)
+        loadIncidencias()
+        
+        // Actualizar la incidencia seleccionada si es la misma
+        if (selectedIncidencia?.id === incidenciaId) {
+          setSelectedIncidencia(demoIncidencias[incidenciaIndex])
+        }
       }
     } catch (error) {
       console.error('Error changing status:', error)
@@ -182,30 +296,41 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const enviarRespuesta = async () => {
+  const enviarRespuesta = () => {
     if (!nuevaRespuesta.trim() || !selectedIncidencia || loadingRespuesta) return
 
     setLoadingRespuesta(true)
     try {
-      const { error } = await supabase
-        .from('respuestas')
-        .insert({
-          incidencia_id: selectedIncidencia.id,
-          usuario_id: user?.id,
-          contenido: nuevaRespuesta.trim(),
-          tipo: 'respuesta'
-        })
-
-      if (error) throw error
-
+      // Crear nueva respuesta
+      const nuevaRespuestaObj: Respuesta = {
+        id: Date.now(), // ID temporal
+        incidencia_id: Number(selectedIncidencia.id),
+        usuario_id: demoUser.id,
+        contenido: nuevaRespuesta.trim(),
+        tipo: 'respuesta' as const,
+        created_at: new Date().toISOString(),
+        usuario: { nombre: demoUser.nombre, email: demoUser.email }
+      }
+      
+      // Encontrar la incidencia en los datos demo y agregar la respuesta
+      const incidenciaIndex = demoIncidencias.findIndex(inc => inc.id === selectedIncidencia.id)
+      if (incidenciaIndex !== -1) {
+        if (!demoIncidencias[incidenciaIndex].respuestas) {
+          demoIncidencias[incidenciaIndex].respuestas = []
+        }
+        demoIncidencias[incidenciaIndex].respuestas!.push(nuevaRespuestaObj)
+        
+        // Si la incidencia estaba abierta, cambiarla a en progreso
+        if (selectedIncidencia.estado === 'abierta') {
+          demoIncidencias[incidenciaIndex].estado = 'en_progreso'
+          setSelectedIncidencia(demoIncidencias[incidenciaIndex])
+        }
+      }
+      
       toast.success('Respuesta enviada exitosamente')
       setNuevaRespuesta('')
       loadRespuestas(Number(selectedIncidencia.id))
-      
-      // Si la incidencia estaba abierta, cambiarla a en progreso
-      if (selectedIncidencia.estado === 'abierta') {
-        await cambiarEstado(Number(selectedIncidencia.id), 'en_progreso')
-      }
+      loadIncidencias()
     } catch (error) {
       console.error('Error sending response:', error)
       toast.error('Error al enviar la respuesta')
@@ -323,7 +448,7 @@ const Soporte: React.FC = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Mis Asignadas</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {incidencias.filter(i => i.asignado_a === user?.id).length}
+                {incidencias.filter(i => i.usuario_asignado === demoUser.id).length}
               </p>
             </div>
           </div>
@@ -485,7 +610,7 @@ const Soporte: React.FC = () => {
                   </div>
                   
                   <div className="ml-4 flex space-x-2">
-                    {!incidencia.asignado_a && (
+                    {!incidencia.usuario_asignado && (
                       <button
                         onClick={() => asignarIncidencia(Number(incidencia.id))}
                         className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"

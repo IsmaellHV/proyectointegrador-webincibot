@@ -6,6 +6,7 @@ import ProtectedRoute, { PublicRoute } from './components/ProtectedRoute'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
+import RecuperarPassword from './pages/RecuperarPassword'
 import Dashboard from './pages/Dashboard'
 import Chatbot from './pages/Chatbot'
 import Incidencias from './pages/Incidencias'
@@ -61,6 +62,14 @@ function App() {
             element={
               <PublicRoute>
                 <Registro />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/recuperar-password" 
+            element={
+              <PublicRoute>
+                <RecuperarPassword />
               </PublicRoute>
             } 
           />
