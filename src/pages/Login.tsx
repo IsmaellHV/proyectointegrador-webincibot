@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, Github } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -198,6 +198,17 @@ const Login: React.FC = () => {
         <div className="text-center text-sm text-gray-500">
           <p>© 2025 INCIBOT</p>
           <p>Proyecto Integrador</p>
+          <div className="mt-3 flex items-center justify-center space-x-2">
+            <Github className="h-4 w-4" />
+            <a 
+              href="https://github.com/IsmaellHV/proyectointegrador-webincibot" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+            >
+              Ver código fuente en GitHub
+            </a>
+          </div>
         </div>
       </div>
     </div>
