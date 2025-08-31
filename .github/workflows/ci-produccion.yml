@@ -3,7 +3,7 @@ name: DEPLOY-PRODUCCION
 on:
   push:
     branches:
-      - produccion
+      - production
 
 jobs:
   build-and-deploy:
