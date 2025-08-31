@@ -305,7 +305,7 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
                       <span className={`text-xs ${
                         mensaje.tipo === 'usuario' ? 'text-blue-100' : 'text-gray-500'
                       }`}>
-                        {formatearFecha(mensaje.created_at)}
+                        {formatearFecha(mensaje.timestamp)}
                       </span>
                     </div>
                   </div>

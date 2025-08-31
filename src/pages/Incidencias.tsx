@@ -7,79 +7,77 @@ import type { Incidencia, Categoria, IncidenciaFilter } from '../types/database'
 // Datos de demostración
 const datosDemo = {
   categorias: [
-    { id: 1, nombre: 'Hardware', descripcion: 'Problemas con equipos físicos', activo: true },
-    { id: 2, nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas', activo: true },
-    { id: 3, nombre: 'Red', descripcion: 'Problemas de conectividad y red', activo: true },
-    { id: 4, nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos', activo: true },
-    { id: 5, nombre: 'Otros', descripcion: 'Otros tipos de incidencias', activo: true }
+    { id: '1', nombre: 'Hardware', descripcion: 'Problemas con equipos físicos', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '2', nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '3', nombre: 'Red', descripcion: 'Problemas de conectividad y red', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '4', nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '5', nombre: 'Otros', descripcion: 'Otros tipos de incidencias', activa: true, created_at: '2024-01-01T00:00:00Z' }
   ],
   incidencias: [
     {
-      id: 1,
+      id: '1',
       titulo: 'Problema con el sistema de impresión',
       descripcion: 'La impresora de la oficina no responde y no se puede imprimir documentos importantes. El problema comenzó esta mañana.',
-      estado: 'abierta',
-      prioridad: 'alta',
-      categoria_id: 1,
+      estado: 'abierta' as const,
+      prioridad: 'alta' as const,
+      categoria_id: '1',
       usuario_id: 'demo-user',
+      asignado_a: null,
       created_at: '2024-01-15T09:30:00Z',
-      categorias: { nombre: 'Hardware', descripcion: 'Problemas con equipos físicos' },
-      respuestas: []
+      updated_at: '2024-01-15T09:30:00Z',
+      resolved_at: null
     },
     {
-      id: 2,
+      id: '2',
       titulo: 'Error en el sistema de facturación',
       descripcion: 'El sistema de facturación muestra errores al generar reportes mensuales. Los datos no se cargan correctamente.',
-      estado: 'en_progreso',
-      prioridad: 'critica',
-      categoria_id: 2,
+      estado: 'en_progreso' as const,
+      prioridad: 'critica' as const,
+      categoria_id: '2',
       usuario_id: 'demo-user',
+      asignado_a: 'admin-user',
       created_at: '2024-01-14T14:20:00Z',
-      categorias: { nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas' },
-      respuestas: [
-        { id: 1, contenido: 'Hemos identificado el problema y estamos trabajando en una solución.' }
-      ]
+      updated_at: '2024-01-14T15:00:00Z',
+      resolved_at: null
     },
     {
-      id: 3,
+      id: '3',
       titulo: 'Conexión lenta a internet',
       descripcion: 'La velocidad de internet en el área de trabajo es muy lenta, afectando la productividad del equipo.',
-      estado: 'resuelta',
-      prioridad: 'media',
-      categoria_id: 3,
+      estado: 'resuelta' as const,
+      prioridad: 'media' as const,
+      categoria_id: '3',
       usuario_id: 'demo-user',
+      asignado_a: 'admin-user',
       created_at: '2024-01-13T11:45:00Z',
-      categorias: { nombre: 'Red', descripcion: 'Problemas de conectividad y red' },
-      respuestas: [
-        { id: 1, contenido: 'Hemos reiniciado el router y mejorado la configuración.' },
-        { id: 2, contenido: 'El problema ha sido resuelto. La velocidad ahora es normal.' }
-      ]
+      updated_at: '2024-01-13T16:30:00Z',
+      resolved_at: '2024-01-13T16:30:00Z'
     },
     {
-      id: 4,
+      id: '4',
       titulo: 'No puedo acceder al sistema CRM',
       descripcion: 'Mi usuario no puede acceder al sistema CRM. Aparece un mensaje de credenciales inválidas.',
-      estado: 'cerrada',
-      prioridad: 'baja',
-      categoria_id: 4,
+      estado: 'cerrada' as const,
+      prioridad: 'baja' as const,
+      categoria_id: '4',
       usuario_id: 'demo-user',
+      asignado_a: 'admin-user',
       created_at: '2024-01-12T16:10:00Z',
-      categorias: { nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos' },
-      respuestas: [
-        { id: 1, contenido: 'Se han restablecido los permisos de acceso.' }
-      ]
+      updated_at: '2024-01-12T17:00:00Z',
+      resolved_at: '2024-01-12T17:00:00Z'
     },
     {
-      id: 5,
+      id: '5',
       titulo: 'Solicitud de nuevo software',
       descripcion: 'Necesito instalar un software de diseño gráfico para mi trabajo. ¿Podrían ayudarme con la instalación?',
-      estado: 'abierta',
-      prioridad: 'baja',
-      categoria_id: 5,
+      estado: 'abierta' as const,
+      prioridad: 'baja' as const,
+      categoria_id: '5',
       usuario_id: 'demo-user',
+      asignado_a: null,
       created_at: '2024-01-11T10:30:00Z',
-      categorias: { nombre: 'Otros', descripcion: 'Otros tipos de incidencias' },
-      respuestas: []
+      updated_at: '2024-01-11T10:30:00Z',
+      resolved_at: null
     }
   ]
 }
@@ -129,7 +127,7 @@ const Incidencias: React.FC = () => {
       incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === selectedFilter.prioridad)
     }
     if (selectedFilter.categoria !== 'todas') {
-      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === parseInt(selectedFilter.categoria))
+      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === selectedFilter.categoria)
     }
 
     // Aplicar búsqueda

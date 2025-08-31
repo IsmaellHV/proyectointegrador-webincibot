@@ -18,6 +18,7 @@ const DEMO_USUARIOS: Usuario[] = [
     nombre: 'Ana García',
     email: 'ana.garcia@empresa.com',
     rol: 'administrador',
+    password_hash: '$2b$10$demo.hash.for.ana.garcia',
     activo: true,
     created_at: '2024-01-15T10:00:00Z',
     updated_at: '2024-01-15T10:00:00Z'
@@ -27,6 +28,7 @@ const DEMO_USUARIOS: Usuario[] = [
     nombre: 'Carlos López',
     email: 'carlos.lopez@empresa.com',
     rol: 'soporte',
+    password_hash: '$2b$10$demo.hash.for.carlos.lopez',
     activo: true,
     created_at: '2024-01-20T14:30:00Z',
     updated_at: '2024-01-20T14:30:00Z'
@@ -36,6 +38,7 @@ const DEMO_USUARIOS: Usuario[] = [
     nombre: 'María Rodríguez',
     email: 'maria.rodriguez@empresa.com',
     rol: 'personal',
+    password_hash: '$2b$10$demo.hash.for.maria.rodriguez',
     activo: true,
     created_at: '2024-02-01T09:15:00Z',
     updated_at: '2024-02-01T09:15:00Z'
@@ -45,6 +48,7 @@ const DEMO_USUARIOS: Usuario[] = [
     nombre: 'Juan Pérez',
     email: 'juan.perez@empresa.com',
     rol: 'personal',
+    password_hash: '$2b$10$demo.hash.for.juan.perez',
     activo: false,
     created_at: '2024-02-10T16:45:00Z',
     updated_at: '2024-02-15T11:20:00Z'
@@ -54,6 +58,7 @@ const DEMO_USUARIOS: Usuario[] = [
     nombre: 'Laura Martínez',
     email: 'laura.martinez@empresa.com',
     rol: 'soporte',
+    password_hash: '$2b$10$demo.hash.for.laura.martinez',
     activo: true,
     created_at: '2024-02-20T13:00:00Z',
     updated_at: '2024-02-20T13:00:00Z'
@@ -153,6 +158,7 @@ const Usuarios: React.FC = () => {
           nombre: formData.nombre.trim(),
           email: formData.email.trim().toLowerCase(),
           rol: formData.rol,
+          password_hash: '$2b$10$demo.hash.for.new.user',
           activo: formData.activo,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()

@@ -5,8 +5,10 @@ interface AuthStore {
   // Estado de autenticación
   user: Usuario | null;
   isAuthenticated: boolean;
+  sessionVerified: boolean;
   isLoading: boolean;
   error: string | null;
+  connectionError: boolean;
 
   // Acciones
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -14,6 +16,7 @@ interface AuthStore {
   checkAuth: () => void;
   updateUser: (userData: Partial<Usuario>) => void;
   clearError: () => void;
+  retryAuth: () => Promise<void>;
 }
 
 // Usuarios de prueba para la demo
@@ -98,6 +101,8 @@ const applyAuthState = (user: Usuario | null, set: any) => {
       user,
       isLoading: false,
       isAuthenticated: true,
+      sessionVerified: true,
+      connectionError: false,
       error: null,
     });
   } else {
@@ -106,6 +111,8 @@ const applyAuthState = (user: Usuario | null, set: any) => {
       user: null,
       isLoading: false,
       isAuthenticated: false,
+      sessionVerified: false,
+      connectionError: false,
       error: null,
     });
   }
@@ -120,6 +127,8 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     user: storedUser,
     isLoading: false,
     isAuthenticated: !!storedUser,
+    sessionVerified: !!storedUser,
+    connectionError: false,
     error: null,
 
     // Acciones
@@ -166,6 +175,11 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     clearError: () => {
       set({ error: null });
     },
+
+    retryAuth: async () => {
+      const storedUser = getUserFromStorage();
+      applyAuthState(storedUser, set);
+    },
   };
 });
 
@@ -182,11 +196,12 @@ export const useRole = () => {
 };
 
 export const useAuth = () => {
-  const { user, isLoading, error } = useAuthStore();
+  const { user, isLoading, error, sessionVerified } = useAuthStore();
   return {
     user,
     isLoading,
     error,
+    sessionVerified,
     isAuthenticated: !!user,
   };
 };
@@ -201,6 +216,8 @@ export const resetStoreForTesting = () => {
     user: null,
     isLoading: false,
     isAuthenticated: false,
+    sessionVerified: false,
+    connectionError: false,
     error: null,
   });
   

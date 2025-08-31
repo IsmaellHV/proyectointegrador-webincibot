@@ -26,34 +26,30 @@ const DEMO_CATEGORIAS: Categoria[] = [
   {
     id: '1',
     nombre: 'Hardware',
-    descripcion: 'Problemas relacionados con equipos físicos',
+    descripcion: 'Problemas con equipos físicos',
     activa: true,
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '2',
     nombre: 'Software',
     descripcion: 'Problemas con aplicaciones y sistemas operativos',
     activa: true,
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '3',
     nombre: 'Red',
     descripcion: 'Problemas de conectividad y red',
     activa: true,
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    created_at: '2024-01-15T10:00:00Z'
   },
   {
     id: '4',
     nombre: 'Seguridad',
     descripcion: 'Incidentes de seguridad informática',
     activa: false,
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    created_at: '2024-01-15T10:00:00Z'
   }
 ]
 
@@ -143,8 +139,7 @@ const Admin: React.FC = () => {
                 ...cat,
                 nombre: categoryForm.nombre.trim(),
                 descripcion: categoryForm.descripcion.trim(),
-                activa: categoryForm.activa,
-                updated_at: new Date().toISOString()
+                activa: categoryForm.activa
               }
             : cat
         )
@@ -167,8 +162,7 @@ const Admin: React.FC = () => {
           nombre: categoryForm.nombre.trim(),
           descripcion: categoryForm.descripcion.trim(),
           activa: categoryForm.activa,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          created_at: new Date().toISOString()
         }
         
         setCategorias([...categorias, newCategory])
@@ -203,7 +197,7 @@ const Admin: React.FC = () => {
       setCategorias(updatedCategorias)
       
       // Actualizar estadísticas de categorías
-      const updatedCategoryStats = categoryStats.filter(stat => stat.categoria !== categoria.nombre)
+      const updatedCategoryStats = DEMO_CATEGORY_STATS.filter(stat => stat.categoria !== categoria.nombre)
       setCategoryStats(updatedCategoryStats)
       
       toast.success('Categoría eliminada exitosamente')

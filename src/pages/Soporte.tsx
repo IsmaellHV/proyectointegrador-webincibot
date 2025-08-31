@@ -1,151 +1,156 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Filter, User, Clock, MessageSquare, CheckCircle, AlertTriangle, Eye, Edit3 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Incidencia, Categoria, Respuesta } from '../types/database'
+import type { IncidenciaConRelaciones, Categoria, Respuesta, RespuestaConUsuario } from '../types/database'
 
 const Soporte: React.FC = () => {
   // Datos de demostración
   const demoUser = {
     id: '1',
     nombre: 'Admin Soporte',
-    email: 'admin@incibot.com'
+    email: 'admin@incibot.com',
+    rol: 'administrador' as const,
+    password_hash: '$2b$10$demo.hash',
+    activo: true,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z'
   }
 
   const demoUsuarios = [
-    { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com' },
-    { id: '2', nombre: 'Juan Pérez', email: 'juan@empresa.com' },
-    { id: '3', nombre: 'María García', email: 'maria@empresa.com' },
-    { id: '4', nombre: 'Carlos López', email: 'carlos@empresa.com' },
-    { id: '5', nombre: 'Ana Martínez', email: 'ana@empresa.com' },
-    { id: '6', nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com' }
+    { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '2', nombre: 'Juan Pérez', email: 'juan@empresa.com', rol: 'personal' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '3', nombre: 'María García', email: 'maria@empresa.com', rol: 'personal' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '4', nombre: 'Carlos López', email: 'carlos@empresa.com', rol: 'personal' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '5', nombre: 'Ana Martínez', email: 'ana@empresa.com', rol: 'personal' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    { id: '6', nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com', rol: 'personal' as const, password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
   ]
 
   const demoCategorias: Categoria[] = [
-    { id: 1, nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema', activo: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: 2, nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación', activo: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: 3, nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas', activo: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: 4, nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema', activo: true, created_at: '2024-01-01T00:00:00Z' }
+    { id: '1', nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '2', nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '3', nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas', activa: true, created_at: '2024-01-01T00:00:00Z' },
+    { id: '4', nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema', activa: true, created_at: '2024-01-01T00:00:00Z' }
   ]
 
-  const demoIncidencias: Incidencia[] = [
+  const demoIncidencias: IncidenciaConRelaciones[] = [
     {
-      id: 1,
+      id: '1',
       titulo: 'Error al cargar dashboard',
       descripcion: 'El dashboard principal no carga correctamente después del login. Se muestra una pantalla en blanco.',
       estado: 'abierta' as const,
       prioridad: 'alta' as const,
-      categoria_id: 1,
+      categoria_id: '1',
       usuario_id: '2',
-      usuario_asignado: null,
       asignado_a: null,
       created_at: '2024-01-15T10:30:00Z',
       updated_at: '2024-01-15T10:30:00Z',
-      categorias: { nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema' },
-      usuario: { nombre: 'Juan Pérez', email: 'juan@empresa.com' },
+      resolved_at: null,
+      categoria: { id: '1', nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema', activa: true, created_at: '2024-01-01T00:00:00Z' },
+      usuario: { id: '2', nombre: 'Juan Pérez', email: 'juan@empresa.com', rol: 'personal', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
       asignado: null,
       respuestas: []
     },
     {
-      id: 2,
+      id: '2',
       titulo: 'No puedo acceder al sistema',
       descripcion: 'Cuando intento hacer login me dice que las credenciales son incorrectas, pero estoy seguro de que son correctas.',
       estado: 'en_progreso' as const,
       prioridad: 'media' as const,
-      categoria_id: 2,
+      categoria_id: '2',
       usuario_id: '3',
-      usuario_asignado: '1',
       asignado_a: '1',
       created_at: '2024-01-14T14:20:00Z',
       updated_at: '2024-01-15T09:15:00Z',
-      categorias: { nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación' },
-      usuario: { nombre: 'María García', email: 'maria@empresa.com' },
-      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      resolved_at: null,
+      categoria: { id: '2', nombre: 'Acceso', descripcion: 'Problemas de acceso y autenticación', activa: true, created_at: '2024-01-01T00:00:00Z' },
+      usuario: { id: '3', nombre: 'María García', email: 'maria@empresa.com', rol: 'personal', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+      asignado: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
       respuestas: [
         {
-          id: 1,
-          incidencia_id: 2,
+          id: '1',
+          incidencia_id: '2',
           usuario_id: '1',
           contenido: 'Hola María, voy a revisar tu cuenta. ¿Podrías confirmarme tu email registrado?',
           tipo: 'respuesta' as const,
           created_at: '2024-01-15T09:15:00Z',
-          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+          usuario: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
         }
       ]
     },
     {
-      id: 3,
+      id: '3',
       titulo: 'Función de reportes no funciona',
       descripcion: 'Al intentar generar un reporte de incidencias, el sistema se queda cargando indefinidamente.',
       estado: 'resuelta' as const,
       prioridad: 'baja' as const,
-      categoria_id: 3,
+      categoria_id: '3',
       usuario_id: '4',
-      usuario_asignado: '1',
       asignado_a: '1',
       created_at: '2024-01-13T16:45:00Z',
       updated_at: '2024-01-14T11:30:00Z',
-      categorias: { nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas' },
-      usuario: { nombre: 'Carlos López', email: 'carlos@empresa.com' },
-      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      resolved_at: '2024-01-14T11:30:00Z',
+      categoria: { id: '3', nombre: 'Funcionalidad', descripcion: 'Problemas con funcionalidades específicas', activa: true, created_at: '2024-01-01T00:00:00Z' },
+      usuario: { id: '4', nombre: 'Carlos López', email: 'carlos@empresa.com', rol: 'personal', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+      asignado: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
       respuestas: [
         {
-          id: 2,
-          incidencia_id: 3,
+          id: '2',
+          incidencia_id: '3',
           usuario_id: '1',
           contenido: 'Hemos identificado el problema. Era un error en la consulta de la base de datos. Ya está solucionado.',
           tipo: 'respuesta' as const,
           created_at: '2024-01-14T11:30:00Z',
-          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+          usuario: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
         }
       ]
     },
     {
-      id: 4,
+      id: '4',
       titulo: 'Sistema muy lento',
       descripcion: 'El sistema está funcionando muy lento desde ayer. Las páginas tardan mucho en cargar.',
       estado: 'cerrada' as const,
       prioridad: 'critica' as const,
-      categoria_id: 4,
+      categoria_id: '4',
       usuario_id: '5',
-      usuario_asignado: '1',
       asignado_a: '1',
       created_at: '2024-01-12T08:00:00Z',
       updated_at: '2024-01-13T15:00:00Z',
-      categorias: { nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema' },
-      usuario: { nombre: 'Ana Martínez', email: 'ana@empresa.com' },
-      asignado: { nombre: 'Admin Soporte', email: 'admin@incibot.com' },
+      resolved_at: '2024-01-13T15:00:00Z',
+      categoria: { id: '4', nombre: 'Rendimiento', descripcion: 'Problemas de rendimiento del sistema', activa: true, created_at: '2024-01-01T00:00:00Z' },
+      usuario: { id: '5', nombre: 'Ana Martínez', email: 'ana@empresa.com', rol: 'personal', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+      asignado: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
       respuestas: [
         {
-          id: 3,
-          incidencia_id: 4,
+          id: '3',
+          incidencia_id: '4',
           usuario_id: '1',
           contenido: 'Hemos optimizado la base de datos y actualizado el servidor. El rendimiento debería haber mejorado significativamente.',
           tipo: 'respuesta' as const,
           created_at: '2024-01-13T15:00:00Z',
-          usuario: { nombre: 'Admin Soporte', email: 'admin@incibot.com' }
+          usuario: { id: '1', nombre: 'Admin Soporte', email: 'admin@incibot.com', rol: 'administrador', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' }
         }
       ]
     },
     {
-      id: 5,
+      id: '5',
       titulo: 'Error 500 al subir archivos',
       descripcion: 'Cuando intento subir un archivo adjunto a una incidencia, me aparece un error 500.',
       estado: 'abierta' as const,
       prioridad: 'media' as const,
-      categoria_id: 1,
+      categoria_id: '1',
       usuario_id: '6',
-      usuario_asignado: null,
       asignado_a: null,
       created_at: '2024-01-15T13:20:00Z',
       updated_at: '2024-01-15T13:20:00Z',
-      categorias: { nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema' },
-      usuario: { nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com' },
+      resolved_at: null,
+      categoria: { id: '1', nombre: 'Técnico', descripcion: 'Problemas técnicos del sistema', activa: true, created_at: '2024-01-01T00:00:00Z' },
+      usuario: { id: '6', nombre: 'Pedro Rodríguez', email: 'pedro@empresa.com', rol: 'personal', password_hash: '$2b$10$demo.hash', activo: true, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
       asignado: null,
       respuestas: []
     }
   ]
 
-  const [incidencias, setIncidencias] = useState<Incidencia[]>(demoIncidencias)
+  const [incidencias, setIncidencias] = useState<IncidenciaConRelaciones[]>(demoIncidencias)
   const [categorias, setCategorias] = useState<Categoria[]>(demoCategorias)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -155,8 +160,8 @@ const Soporte: React.FC = () => {
     categoria: 'todas',
     asignacion: 'todas'
   })
-  const [selectedIncidencia, setSelectedIncidencia] = useState<Incidencia | null>(null)
-  const [respuestas, setRespuestas] = useState<Respuesta[]>([])
+  const [selectedIncidencia, setSelectedIncidencia] = useState<IncidenciaConRelaciones | null>(null)
+  const [respuestas, setRespuestas] = useState<RespuestaConUsuario[]>([])
   const [nuevaRespuesta, setNuevaRespuesta] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -197,12 +202,12 @@ const Soporte: React.FC = () => {
         incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === selectedFilter.prioridad)
       }
       if (selectedFilter.categoria !== 'todas') {
-        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === parseInt(selectedFilter.categoria))
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === selectedFilter.categoria)
       }
       if (selectedFilter.asignacion === 'mis_asignadas') {
-        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.usuario_asignado === demoUser.id)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.asignado_a === demoUser.id)
       } else if (selectedFilter.asignacion === 'sin_asignar') {
-        incidenciasFiltradas = incidenciasFiltradas.filter(inc => !inc.usuario_asignado)
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => !inc.asignado_a)
       }
 
       // Aplicar búsqueda
@@ -224,7 +229,7 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const loadRespuestas = (incidenciaId: number) => {
+  const loadRespuestas = (incidenciaId: string) => {
     try {
       // Buscar la incidencia en los datos demo
       const incidencia = demoIncidencias.find(inc => inc.id === incidenciaId)
@@ -242,7 +247,7 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const asignarIncidencia = (incidenciaId: number) => {
+  const asignarIncidencia = async (incidenciaId: string) => {
     try {
       // Encontrar la incidencia en los datos demo
       const incidenciaIndex = demoIncidencias.findIndex(inc => inc.id === incidenciaId)
@@ -250,8 +255,8 @@ const Soporte: React.FC = () => {
         // Actualizar la incidencia en los datos demo
         demoIncidencias[incidenciaIndex] = {
           ...demoIncidencias[incidenciaIndex],
-          usuario_asignado: demoUser.id,
-          asignado: { nombre: demoUser.nombre, email: demoUser.email },
+          asignado_a: demoUser.id,
+          asignado: { id: demoUser.id, nombre: demoUser.nombre, email: demoUser.email, rol: demoUser.rol, password_hash: demoUser.password_hash, activo: demoUser.activo, created_at: demoUser.created_at, updated_at: demoUser.updated_at },
           estado: 'en_progreso' as const,
           updated_at: new Date().toISOString()
         }
@@ -270,7 +275,7 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const cambiarEstado = async (incidenciaId: number, nuevoEstado: string) => {
+  const cambiarEstado = async (incidenciaId: string, nuevoEstado: string) => {
     try {
       // Encontrar la incidencia en los datos demo
       const incidenciaIndex = demoIncidencias.findIndex(inc => inc.id === incidenciaId)
@@ -302,14 +307,14 @@ const Soporte: React.FC = () => {
     setLoadingRespuesta(true)
     try {
       // Crear nueva respuesta
-      const nuevaRespuestaObj: Respuesta = {
-        id: Date.now(), // ID temporal
-        incidencia_id: Number(selectedIncidencia.id),
+      const nuevaRespuestaObj: RespuestaConUsuario = {
+        id: String(Date.now()), // ID temporal
+        incidencia_id: selectedIncidencia.id,
         usuario_id: demoUser.id,
         contenido: nuevaRespuesta.trim(),
         tipo: 'respuesta' as const,
         created_at: new Date().toISOString(),
-        usuario: { nombre: demoUser.nombre, email: demoUser.email }
+        usuario: { id: demoUser.id, nombre: demoUser.nombre, email: demoUser.email, rol: demoUser.rol, password_hash: demoUser.password_hash, activo: demoUser.activo, created_at: demoUser.created_at, updated_at: demoUser.updated_at }
       }
       
       // Encontrar la incidencia en los datos demo y agregar la respuesta
@@ -329,7 +334,7 @@ const Soporte: React.FC = () => {
       
       toast.success('Respuesta enviada exitosamente')
       setNuevaRespuesta('')
-      loadRespuestas(Number(selectedIncidencia.id))
+      loadRespuestas(selectedIncidencia.id)
       loadIncidencias()
     } catch (error) {
       console.error('Error sending response:', error)
@@ -339,10 +344,10 @@ const Soporte: React.FC = () => {
     }
   }
 
-  const abrirModal = (incidencia: Incidencia) => {
+  const abrirModal = (incidencia: IncidenciaConRelaciones) => {
     setSelectedIncidencia(incidencia)
     setShowModal(true)
-    loadRespuestas(Number(incidencia.id))
+    loadRespuestas(incidencia.id)
   }
 
   const cerrarModal = () => {
@@ -448,7 +453,7 @@ const Soporte: React.FC = () => {
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-500">Mis Asignadas</p>
               <p className="text-2xl font-semibold text-gray-900">
-                {incidencias.filter(i => i.usuario_asignado === demoUser.id).length}
+                {incidencias.filter(i => i.asignado_a === demoUser.id).length}
               </p>
             </div>
           </div>
@@ -610,9 +615,9 @@ const Soporte: React.FC = () => {
                   </div>
                   
                   <div className="ml-4 flex space-x-2">
-                    {!incidencia.usuario_asignado && (
+                    {!incidencia.asignado_a && (
                       <button
-                        onClick={() => asignarIncidencia(Number(incidencia.id))}
+                        onClick={() => asignarIncidencia(incidencia.id)}
                         className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700"
                       >
                         <User className="h-3 w-3 mr-1" />
@@ -662,7 +667,7 @@ const Soporte: React.FC = () => {
                       <div className="mt-1">
                         <select
                           value={selectedIncidencia.estado}
-                          onChange={(e) => cambiarEstado(Number(selectedIncidencia.id), e.target.value)}
+                          onChange={(e) => cambiarEstado(selectedIncidencia.id, e.target.value)}
                           className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
                         >
                           <option value="abierta">Abierta</option>
@@ -702,7 +707,7 @@ const Soporte: React.FC = () => {
                 
                 {!(selectedIncidencia as any).asignado && (
                   <button
-                    onClick={() => asignarIncidencia(Number(selectedIncidencia.id))}
+                    onClick={() => asignarIncidencia(selectedIncidencia.id)}
                     className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                   >
                     <User className="h-4 w-4 mr-2" />

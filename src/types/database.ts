@@ -232,7 +232,7 @@ export type IncidenciaConRelaciones = Incidencia & {
   usuario?: Usuario
   categoria?: Categoria
   asignado?: Usuario
-  respuestas?: Respuesta[]
+  respuestas?: RespuestaConUsuario[]
 }
 
 export type RespuestaConUsuario = Respuesta & {

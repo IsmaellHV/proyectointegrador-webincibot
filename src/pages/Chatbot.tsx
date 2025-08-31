@@ -3,7 +3,7 @@ import { Bot, MessageSquare, Plus, Clock, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
 import Chat from '../components/Chat'
-import type { ChatCategoria, Conversacion } from '../types/database'
+import type { ChatCategoria, Conversacion, ConversacionConMensajes } from '../types/database'
 
 const Chatbot: React.FC = () => {
   const { user } = useAuthStore()
@@ -17,23 +17,38 @@ const Chatbot: React.FC = () => {
   const datosDemo = {
     categorias: [
       {
-        id: '1',
-        nombre: 'Soporte Técnico',
-        descripcion: 'Problemas técnicos y de sistema',
+        id: 1,
+        nombre: 'Hardware',
+        descripcion: 'Problemas con equipos físicos',
         activa: true,
-        created_at: new Date().toISOString()
+        created_at: '2024-01-15T10:00:00Z'
       },
       {
-        id: '2',
-        nombre: 'Consultas Generales',
-        descripcion: 'Preguntas generales sobre servicios',
+        id: 2,
+        nombre: 'Software',
+        descripcion: 'Problemas con aplicaciones y sistemas operativos',
         activa: true,
-        created_at: new Date().toISOString()
+        created_at: '2024-01-15T10:00:00Z'
+      },
+      {
+        id: 3,
+        nombre: 'Red',
+        descripcion: 'Problemas de conectividad y red',
+        activa: true,
+        created_at: '2024-01-15T10:00:00Z'
+      },
+      {
+        id: 4,
+        nombre: 'Seguridad',
+        descripcion: 'Incidentes de seguridad informática',
+        activa: false,
+        created_at: '2024-01-15T10:00:00Z'
       }
     ],
     conversaciones: [
       {
         id: '1',
+        usuario_id: 'demo-user',
         titulo: 'Problema con el sistema de login',
         estado: 'activa' as const,
         updated_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(), // 30 minutos atrás
@@ -69,6 +84,7 @@ const Chatbot: React.FC = () => {
       },
       {
         id: '2',
+        usuario_id: 'demo-user',
         titulo: 'Consulta sobre funcionalidades',
         estado: 'cerrada' as const,
         updated_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 día atrás
@@ -111,8 +127,9 @@ const Chatbot: React.FC = () => {
       },
       {
         id: '3',
+        usuario_id: 'demo-user',
         titulo: 'Reporte de incidencia',
-        estado: 'pendiente' as const,
+        estado: 'activa' as const,
         updated_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 horas atrás
         created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
         mensajes: [
@@ -151,13 +168,30 @@ const Chatbot: React.FC = () => {
   useEffect(() => {
     if (user) {
       setCategorias(datosDemo.categorias)
-      setConversaciones(datosDemo.conversaciones)
+      // Extraer solo las propiedades básicas de conversación
+      const conversacionesBasicas = datosDemo.conversaciones.map(conv => ({
+        id: conv.id,
+        usuario_id: conv.usuario_id,
+        titulo: conv.titulo,
+        estado: conv.estado,
+        created_at: conv.created_at,
+        updated_at: conv.updated_at
+      }))
+      setConversaciones(conversacionesBasicas)
     }
   }, [user])
 
   const cargarConversaciones = () => {
     // Simular carga de conversaciones con datos de demostración
-    setConversaciones(datosDemo.conversaciones)
+    const conversacionesBasicas = datosDemo.conversaciones.map(conv => ({
+      id: conv.id,
+      usuario_id: conv.usuario_id,
+      titulo: conv.titulo,
+      estado: conv.estado,
+      created_at: conv.created_at,
+      updated_at: conv.updated_at
+    }))
+    setConversaciones(conversacionesBasicas)
   }
 
   // Manejar selección de conversación
