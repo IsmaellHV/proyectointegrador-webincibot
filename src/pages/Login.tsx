@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, LogIn, AlertCircle, Github } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import logoTextoIncibot from '../assets/logo_texto_incibot.png';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
@@ -83,7 +84,7 @@ const Login: React.FC = () => {
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto mb-6">
-            <img src="/src/assets/logo_texto_incibot.png" alt="INCIBOT" className="h-20 mx-auto" />
+            <img src={logoTextoIncibot} alt="INCIBOT" className="h-20 mx-auto" />
           </div>
         </div>
 
