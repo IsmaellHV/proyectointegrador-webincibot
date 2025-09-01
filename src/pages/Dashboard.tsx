@@ -33,23 +33,26 @@ const Dashboard: React.FC = () => {
   const [incidenciasLoading, setIncidenciasLoading] = useState(true)
   const [recentIncidencias, setRecentIncidencias] = useState<any[]>([])
 
-  // Efecto para cargar datos cuando el usuario esté autenticado
+  // Efecto principal para cargar datos cuando el usuario está autenticado
   useEffect(() => {
-    // Cargar datos si hay usuario autenticado, independientemente de sessionVerified
-    // Esto permite cargar datos inmediatamente después del refresh desde localStorage
+    console.log('🔄 [DASHBOARD] useEffect ejecutado - user:', !!user, 'isAuthenticated:', isAuthenticated)
     if (user && isAuthenticated) {
       console.log('🔄 [DASHBOARD] Loading dashboard data for user:', user.email)
+      console.log('🔄 [DASHBOARD] Ejecutando loadDashboardData directamente...')
       loadDashboardData()
+    } else {
+      console.log('🔄 [DASHBOARD] No se ejecuta loadDashboardData - user:', !!user, 'isAuthenticated:', isAuthenticated)
     }
   }, [user, isAuthenticated])
 
   // Efecto adicional para recargar datos cuando la sesión se verifica completamente
   useEffect(() => {
-    if (user && sessionVerified && isAuthenticated && !metricsLoading && !incidenciasLoading) {
+    if (user && sessionVerified && isAuthenticated) {
       console.log('🔄 [DASHBOARD] Session verified, refreshing data if needed')
-      // Solo recargar si no hay datos o si han pasado más de 5 minutos
+      // Solo recargar si no hay datos
       const shouldRefresh = !metrics || !recentIncidencias || recentIncidencias.length === 0
       if (shouldRefresh) {
+        console.log('🔄 [DASHBOARD] Ejecutando loadDashboardData desde sessionVerified...')
         loadDashboardData()
       }
     }
@@ -78,32 +81,81 @@ const Dashboard: React.FC = () => {
   }, [sessionVerified, isAuthenticated])
 
   const loadDashboardData = async () => {
+    console.log('🔄 [DASHBOARD] Iniciando carga de datos del dashboard...')
     // Cargar métricas y incidencias en paralelo para mejor rendimiento
     const metricsPromise = isPersonal ? loadPersonalMetrics() : loadGeneralMetrics()
     const incidenciasPromise = loadRecentIncidencias()
     
     // Ejecutar ambas consultas en paralelo
     await Promise.allSettled([metricsPromise, incidenciasPromise])
+    console.log('✅ [DASHBOARD] Carga de datos del dashboard completada')
   }
 
   const loadPersonalMetrics = async () => {
     try {
       setMetricsLoading(true)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Obtener total de incidencias del usuario
+      const { data: totalData } = await supabase
+        .from('incidencias')
+        .select('id', { count: 'exact' })
+        .eq('usuario_id', user.id);
+
+      // Obtener incidencias por estado
+      const { data: estadoData } = await supabase
+        .from('incidencias')
+        .select('estado')
+        .eq('usuario_id', user.id);
+
+      const estadoCount = estadoData?.reduce((acc, inc) => {
+        acc[inc.estado] = (acc[inc.estado] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Obtener incidencias por prioridad
+      const { data: prioridadData } = await supabase
+        .from('incidencias')
+        .select('prioridad')
+        .eq('usuario_id', user.id);
+
+      const prioridadCount = prioridadData?.reduce((acc, inc) => {
+        acc[inc.prioridad] = (acc[inc.prioridad] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Calcular tiempo promedio de resolución
+      const { data: resolvedData } = await supabase
+        .from('incidencias')
+        .select('created_at, resolved_at')
+        .eq('usuario_id', user.id)
+        .not('resolved_at', 'is', null);
+
+      let promedioResolucion = 0;
+      if (resolvedData && resolvedData.length > 0) {
+        const totalDias = resolvedData.reduce((sum, inc) => {
+          const created = new Date(inc.created_at);
+          const resolved = new Date(inc.resolved_at);
+          const dias = Math.ceil((resolved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+          return sum + dias;
+        }, 0);
+        promedioResolucion = Math.round(totalDias / resolvedData.length * 10) / 10;
+      }
       
-      // Datos de demostración para métricas personales
       setMetrics({
-        totalIncidencias: 8,
-        incidenciasAbiertas: 2,
-        incidenciasEnProgreso: 3,
-        incidenciasResueltas: 2,
-        incidenciasCerradas: 1,
+        totalIncidencias: totalData?.length || 0,
+        incidenciasAbiertas: estadoCount['abierta'] || 0,
+        incidenciasEnProgreso: estadoCount['en_progreso'] || 0,
+        incidenciasResueltas: estadoCount['resuelta'] || 0,
+        incidenciasCerradas: estadoCount['cerrada'] || 0,
         incidenciasPorPrioridad: {
-          baja: 2,
-          media: 3,
-          alta: 2,
-          critica: 1
+          baja: prioridadCount['baja'] || 0,
+          media: prioridadCount['media'] || 0,
+          alta: prioridadCount['alta'] || 0,
+          critica: prioridadCount['critica'] || 0
         },
-        promedioResolucion: 0
+        promedioResolucion
       })
     } catch (error) {
       console.error('Error cargando métricas personales:', error)
@@ -116,20 +168,61 @@ const Dashboard: React.FC = () => {
     try {
       setMetricsLoading(true)
       
-      // Datos de demostración para métricas generales
+      // Obtener total de incidencias del sistema
+      const { data: totalData } = await supabase
+        .from('incidencias')
+        .select('id', { count: 'exact' });
+
+      // Obtener incidencias por estado
+      const { data: estadoData } = await supabase
+        .from('incidencias')
+        .select('estado');
+
+      const estadoCount = estadoData?.reduce((acc, inc) => {
+        acc[inc.estado] = (acc[inc.estado] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Obtener incidencias por prioridad
+      const { data: prioridadData } = await supabase
+        .from('incidencias')
+        .select('prioridad');
+
+      const prioridadCount = prioridadData?.reduce((acc, inc) => {
+        acc[inc.prioridad] = (acc[inc.prioridad] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Calcular tiempo promedio de resolución general
+      const { data: resolvedData } = await supabase
+        .from('incidencias')
+        .select('created_at, resolved_at')
+        .not('resolved_at', 'is', null);
+
+      let promedioResolucion = 0;
+      if (resolvedData && resolvedData.length > 0) {
+        const totalDias = resolvedData.reduce((sum, inc) => {
+          const created = new Date(inc.created_at);
+          const resolved = new Date(inc.resolved_at);
+          const dias = Math.ceil((resolved.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+          return sum + dias;
+        }, 0);
+        promedioResolucion = Math.round(totalDias / resolvedData.length * 10) / 10;
+      }
+      
       setMetrics({
-        totalIncidencias: 45,
-        incidenciasAbiertas: 12,
-        incidenciasEnProgreso: 18,
-        incidenciasResueltas: 10,
-        incidenciasCerradas: 5,
+        totalIncidencias: totalData?.length || 0,
+        incidenciasAbiertas: estadoCount['abierta'] || 0,
+        incidenciasEnProgreso: estadoCount['en_progreso'] || 0,
+        incidenciasResueltas: estadoCount['resuelta'] || 0,
+        incidenciasCerradas: estadoCount['cerrada'] || 0,
         incidenciasPorPrioridad: {
-          baja: 15,
-          media: 18,
-          alta: 8,
-          critica: 4
+          baja: prioridadCount['baja'] || 0,
+          media: prioridadCount['media'] || 0,
+          alta: prioridadCount['alta'] || 0,
+          critica: prioridadCount['critica'] || 0
         },
-        promedioResolucion: 0
+        promedioResolucion
       })
     } catch (error) {
       console.error('Error cargando métricas generales:', error)
@@ -141,44 +234,50 @@ const Dashboard: React.FC = () => {
   const loadRecentIncidencias = async () => {
     try {
       setIncidenciasLoading(true)
+      console.log('🔄 [DASHBOARD] Cargando incidencias recientes desde Supabase...')
       
-      // Datos de demostración para incidencias recientes
-      const demoIncidencias = [
-        {
-          id: 1,
-          titulo: 'Problema con el sistema de autenticación',
-          descripcion: 'Los usuarios no pueden iniciar sesión',
-          estado: 'abierta',
-          prioridad: 'alta',
-          created_at: new Date().toISOString(),
-          usuario: { nombre: 'Juan Pérez' },
-          categoria: { nombre: 'Sistema' }
-        },
-        {
-          id: 2,
-          titulo: 'Error en la base de datos',
-          descripcion: 'Consultas lentas en la base de datos',
-          estado: 'en_progreso',
-          prioridad: 'media',
-          created_at: new Date(Date.now() - 3600000).toISOString(),
-          usuario: { nombre: 'María García' },
-          categoria: { nombre: 'Base de Datos' }
-        },
-        {
-          id: 3,
-          titulo: 'Interfaz no responde',
-          descripcion: 'La interfaz se congela al cargar datos',
-          estado: 'resuelta',
-          prioridad: 'baja',
-          created_at: new Date(Date.now() - 7200000).toISOString(),
-          usuario: { nombre: 'Carlos López' },
-          categoria: { nombre: 'Frontend' }
-        }
-      ]
-
-      setRecentIncidencias(demoIncidencias)
+      // Obtener incidencias reales desde Supabase
+      const { data, error } = await supabase
+        .from('incidencias')
+        .select(`
+          id,
+          codigo,
+          titulo,
+          descripcion,
+          estado,
+          prioridad,
+          created_at,
+          usuarios(nombre),
+          categorias(nombre)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      
+      if (error) {
+        console.error('❌ [DASHBOARD] Error obteniendo incidencias:', error)
+        throw error
+      }
+      
+      console.log('✅ [DASHBOARD] Incidencias obtenidas:', data)
+      
+      // Transformar datos para el formato esperado
+      const incidenciasFormateadas = data?.map(inc => ({
+        id: inc.id,
+        codigo: inc.codigo,
+        titulo: inc.titulo,
+        descripcion: inc.descripcion,
+        estado: inc.estado,
+        prioridad: inc.prioridad,
+        created_at: inc.created_at,
+        usuario: { nombre: inc.usuarios?.nombre || 'Usuario desconocido' },
+        categoria: { nombre: inc.categorias?.nombre || 'Sin categoría' }
+      })) || []
+      
+      setRecentIncidencias(incidenciasFormateadas)
     } catch (error) {
-      console.error('Error cargando incidencias recientes:', error)
+      console.error('❌ [DASHBOARD] Error cargando incidencias recientes:', error)
+      // En caso de error, mostrar array vacío en lugar de datos demo
+      setRecentIncidencias([])
     } finally {
       setIncidenciasLoading(false)
     }
@@ -423,7 +522,7 @@ const Dashboard: React.FC = () => {
                         <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                           <div>
                             <p className="text-sm text-gray-500">
-                              <span className="font-medium text-gray-900">{incidencia.titulo}</span>
+                              <span className="font-medium text-gray-900">{incidencia.codigo} - {incidencia.titulo}</span>
                             </p>
                             <div className="mt-1 flex items-center space-x-2">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${

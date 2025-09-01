@@ -3,142 +3,225 @@ import { Search, Filter, Plus, Eye, MessageSquare, Clock, AlertCircle, CheckCirc
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
 import type { Incidencia, Categoria, IncidenciaFilter } from '../types/database'
+import { obtenerIncidenciasUsuario, obtenerCategorias } from '../lib/supabase'
 
-// Datos de demostración
-const datosDemo = {
-  categorias: [
-    { id: '1', nombre: 'Hardware', descripcion: 'Problemas con equipos físicos', activa: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: '2', nombre: 'Software', descripcion: 'Problemas con aplicaciones y sistemas', activa: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: '3', nombre: 'Red', descripcion: 'Problemas de conectividad y red', activa: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: '4', nombre: 'Acceso', descripcion: 'Problemas de acceso y permisos', activa: true, created_at: '2024-01-01T00:00:00Z' },
-    { id: '5', nombre: 'Otros', descripcion: 'Otros tipos de incidencias', activa: true, created_at: '2024-01-01T00:00:00Z' }
-  ],
-  incidencias: [
-    {
-      id: '1',
-      titulo: 'Problema con el sistema de impresión',
-      descripcion: 'La impresora de la oficina no responde y no se puede imprimir documentos importantes. El problema comenzó esta mañana.',
-      estado: 'abierta' as const,
-      prioridad: 'alta' as const,
-      categoria_id: '1',
-      usuario_id: 'demo-user',
-      asignado_a: null,
-      created_at: '2024-01-15T09:30:00Z',
-      updated_at: '2024-01-15T09:30:00Z',
-      resolved_at: null
-    },
-    {
-      id: '2',
-      titulo: 'Error en el sistema de facturación',
-      descripcion: 'El sistema de facturación muestra errores al generar reportes mensuales. Los datos no se cargan correctamente.',
-      estado: 'en_progreso' as const,
-      prioridad: 'critica' as const,
-      categoria_id: '2',
-      usuario_id: 'demo-user',
-      asignado_a: 'admin-user',
-      created_at: '2024-01-14T14:20:00Z',
-      updated_at: '2024-01-14T15:00:00Z',
-      resolved_at: null
-    },
-    {
-      id: '3',
-      titulo: 'Conexión lenta a internet',
-      descripcion: 'La velocidad de internet en el área de trabajo es muy lenta, afectando la productividad del equipo.',
-      estado: 'resuelta' as const,
-      prioridad: 'media' as const,
-      categoria_id: '3',
-      usuario_id: 'demo-user',
-      asignado_a: 'admin-user',
-      created_at: '2024-01-13T11:45:00Z',
-      updated_at: '2024-01-13T16:30:00Z',
-      resolved_at: '2024-01-13T16:30:00Z'
-    },
-    {
-      id: '4',
-      titulo: 'No puedo acceder al sistema CRM',
-      descripcion: 'Mi usuario no puede acceder al sistema CRM. Aparece un mensaje de credenciales inválidas.',
-      estado: 'cerrada' as const,
-      prioridad: 'baja' as const,
-      categoria_id: '4',
-      usuario_id: 'demo-user',
-      asignado_a: 'admin-user',
-      created_at: '2024-01-12T16:10:00Z',
-      updated_at: '2024-01-12T17:00:00Z',
-      resolved_at: '2024-01-12T17:00:00Z'
-    },
-    {
-      id: '5',
-      titulo: 'Solicitud de nuevo software',
-      descripcion: 'Necesito instalar un software de diseño gráfico para mi trabajo. ¿Podrían ayudarme con la instalación?',
-      estado: 'abierta' as const,
-      prioridad: 'baja' as const,
-      categoria_id: '5',
-      usuario_id: 'demo-user',
-      asignado_a: null,
-      created_at: '2024-01-11T10:30:00Z',
-      updated_at: '2024-01-11T10:30:00Z',
-      resolved_at: null
-    }
-  ]
-}
-
-const Incidencias: React.FC = () => {
-  const { user, sessionVerified } = useAuthStore()
+function Incidencias() {
+  console.log('🎯 [INCIDENCIAS] Componente Incidencias iniciando...')
+  
+  const { user } = useAuthStore()
   const [incidencias, setIncidencias] = useState<Incidencia[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState<IncidenciaFilter>({
+  const [incidenciaSeleccionada, setIncidenciaSeleccionada] = useState<Incidencia | null>(null)
+  const [filtros, setFiltros] = useState<IncidenciaFilter>({
+    busqueda: '',
     estado: 'todas',
     prioridad: 'todas',
     categoria: 'todas'
   })
-  const [selectedIncidencia, setSelectedIncidencia] = useState<Incidencia | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  console.log('🎯 [INCIDENCIAS] Estado inicial - Usuario:', user)
 
-  useEffect(() => {
-    cargarDatos()
-  }, [])
+  // Función para formatear fecha
+  const formatearFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
-  useEffect(() => {
-    loadIncidencias()
-  }, [selectedFilter, searchTerm])
-
-  // Cargar datos de demostración
-  const cargarDatos = async () => {
-    setLoading(true)
-    // Simular carga asíncrona
-    await new Promise(resolve => setTimeout(resolve, 500))
+  // Función para limpiar datos de prueba y forzar reautenticación
+  const limpiarDatosPrueba = () => {
+    console.log('🧹 [DEBUG] Limpiando datos de prueba...')
     
-    setCategorias(datosDemo.categorias)
-    loadIncidencias() // Cargar incidencias con filtros aplicados
-    setLoading(false)
+    // Verificar si el usuario actual tiene ID numérico
+    if (user && (user.id === '1' || user.id === 1 || typeof user.id === 'number')) {
+      console.log('🧹 [DEBUG] Usuario con ID numérico detectado:', user.id)
+      console.log('🧹 [DEBUG] Limpiando localStorage y forzando logout...')
+      
+      // Limpiar localStorage
+      localStorage.removeItem('incibot_user_data')
+      localStorage.removeItem('auth-storage')
+      localStorage.clear()
+      
+      // Mostrar mensaje al usuario
+      toast.error('Datos de prueba detectados. Por favor, inicia sesión con credenciales reales de Supabase.')
+      
+      // Forzar logout y redirección
+      setTimeout(() => {
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+      }, 1000)
+      
+      return true // Indica que se detectaron datos de prueba
+    }
+    
+    // Verificar localStorage adicional
+    const userData = localStorage.getItem('incibot_user_data')
+    if (userData) {
+      try {
+        const parsed = JSON.parse(userData)
+        console.log('🔍 [DEBUG] Datos en localStorage:', parsed)
+        
+        if (parsed.id === '1' || parsed.id === 1 || typeof parsed.id === 'number') {
+          console.log('🧹 [DEBUG] Removiendo datos de prueba del localStorage')
+          localStorage.removeItem('incibot_user_data')
+          localStorage.removeItem('auth-storage')
+          localStorage.clear()
+          
+          toast.error('Datos de prueba detectados. Por favor, inicia sesión con credenciales reales.')
+          
+          setTimeout(() => {
+            useAuthStore.getState().logout()
+            window.location.href = '/login'
+          }, 1000)
+          
+          return true
+        }
+      } catch (e) {
+        console.error('❌ [DEBUG] Error parseando datos de usuario:', e)
+        localStorage.removeItem('incibot_user_data')
+        localStorage.removeItem('auth-storage')
+      }
+    }
+    
+    console.log('✅ [DEBUG] Verificación completada - No se detectaron datos de prueba')
+    return false
   }
 
-  const loadIncidencias = () => {
-    // Filtrar incidencias según los filtros aplicados
-    let incidenciasFiltradas = [...datosDemo.incidencias]
+  useEffect(() => {
+    console.log('🚀 Componente Incidencias montado')
+    console.log('👤 Usuario en useEffect inicial:', user)
     
-    // Aplicar filtros
-    if (selectedFilter.estado !== 'todas') {
-      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.estado === selectedFilter.estado)
+    // FORZAR limpieza inmediata si hay datos de prueba
+    if (user && (user.id === '1' || user.id === 1 || typeof user.id === 'number')) {
+      console.log('🧹 [FORZADO] Detectado usuario con ID numérico:', user.id)
+      console.log('🧹 [FORZADO] Limpiando localStorage y forzando logout...')
+      
+      // Limpiar todo el localStorage
+      localStorage.clear()
+      
+      // Mostrar mensaje al usuario
+      toast.error('Datos de prueba detectados. Redirigiendo al login para usar credenciales reales de Supabase.')
+      
+      // Forzar logout inmediato
+      useAuthStore.getState().logout()
+      
+      // Redirección inmediata
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1500)
+      
+      return // No cargar datos
     }
-    if (selectedFilter.prioridad !== 'todas') {
-      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === selectedFilter.prioridad)
+    
+    // Limpiar datos de prueba antes de cargar datos
+    const tieneDatosPrueba = limpiarDatosPrueba()
+    
+    // Solo cargar datos si no se detectaron datos de prueba
+    if (!tieneDatosPrueba) {
+      cargarDatos()
     }
-    if (selectedFilter.categoria !== 'todas') {
-      incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === selectedFilter.categoria)
+  }, [user])
+
+  useEffect(() => {
+    cargarIncidencias()
+  }, [user, filtros])
+
+  const cargarDatos = async () => {
+    try {
+      console.log('🔄 Iniciando carga de datos...')
+      
+      // Cargar categorías
+      console.log('📂 Cargando categorías...')
+      const categoriasData = await obtenerCategorias()
+      console.log('📂 Categorías obtenidas:', categoriasData)
+      setCategorias(categoriasData)
+      
+      // Cargar incidencias
+      console.log('📋 Cargando incidencias...')
+      await cargarIncidencias()
+    } catch (err) {
+      console.error('❌ Error cargando datos:', err)
+      setError('Error al cargar los datos')
+      setCargando(false)
+    }
+  }
+
+  const cargarIncidencias = async () => {
+    console.log('🔍 [DEBUG] cargarIncidencias iniciado')
+    console.log('🔍 [DEBUG] Usuario actual:', user)
+    console.log('🔍 [DEBUG] User ID:', user?.id)
+    console.log('🔍 [DEBUG] User email:', user?.email)
+    
+    if (!user?.id) {
+      console.log('❌ Usuario no autenticado')
+      setError('Usuario no autenticado')
+      setCargando(false)
+      return
     }
 
-    // Aplicar búsqueda
-    if (searchTerm) {
-      incidenciasFiltradas = incidenciasFiltradas.filter(inc => 
-        inc.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inc.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
+    try {
+      setCargando(true)
+      setError(null)
+      
+      console.log('🔍 Obteniendo incidencias para usuario ID:', user.id)
+      console.log('🔄 Tipo de user.id:', typeof user.id)
+      // Obtener incidencias del usuario desde Supabase
+      const incidenciasUsuario = await obtenerIncidenciasUsuario(user.id)
+      console.log('📋 Incidencias obtenidas de Supabase:', incidenciasUsuario)
+      console.log('📊 Cantidad de incidencias:', incidenciasUsuario?.length || 0)
+      
+      // Debug específico para el campo codigo
+      incidenciasUsuario.forEach((inc, index) => {
+        console.log(`🎫 Incidencia ${index + 1}:`, {
+          id: inc.id,
+          titulo: inc.titulo,
+          codigo: inc.codigo,
+          codigo_type: typeof inc.codigo,
+          codigo_exists: inc.codigo !== null && inc.codigo !== undefined
+        })
+      })
+      
+      // Aplicar filtros locales
+      let incidenciasFiltradas = [...incidenciasUsuario]
 
-    setIncidencias(incidenciasFiltradas)
+      // Filtrar por búsqueda
+      if (filtros.busqueda) {
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => 
+          inc.titulo.toLowerCase().includes(filtros.busqueda.toLowerCase()) ||
+          inc.descripcion.toLowerCase().includes(filtros.busqueda.toLowerCase())
+        )
+      }
+
+      // Filtrar por estado
+      if (filtros.estado !== 'todas') {
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.estado === filtros.estado)
+      }
+
+      // Filtrar por prioridad
+      if (filtros.prioridad !== 'todas') {
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.prioridad === filtros.prioridad)
+      }
+
+      // Filtrar por categoría
+      if (filtros.categoria !== 'todas') {
+        incidenciasFiltradas = incidenciasFiltradas.filter(inc => inc.categoria_id === filtros.categoria)
+      }
+
+      console.log('✅ Estableciendo incidencias filtradas:', incidenciasFiltradas)
+      setIncidencias(incidenciasFiltradas)
+    } catch (err) {
+      console.error('❌ Error cargando incidencias:', err)
+      setError('Error al cargar las incidencias')
+    } finally {
+      setCargando(false)
+    }
   }
 
   const getEstadoIcon = (estado: string) => {
@@ -196,9 +279,20 @@ const Incidencias: React.FC = () => {
     })
   }
 
-  const filteredIncidencias = incidencias
+  // Verificar si el usuario está autenticado
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <AlertCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Acceso restringido</h3>
+          <p className="text-gray-500">Debes iniciar sesión para ver tus incidencias.</p>
+        </div>
+      </div>
+    )
+  }
 
-  if (loading) {
+  if (cargando && incidencias.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -237,17 +331,19 @@ const Incidencias: React.FC = () => {
               <input
                 type="text"
                 placeholder="Buscar incidencias..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filtros.busqueda}
+                onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={cargando}
               />
             </div>
           </div>
 
           {/* Filter Toggle */}
           <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={() => setMostrarFiltros(!mostrarFiltros)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            disabled={cargando}
           >
             <Filter className="h-4 w-4 mr-2" />
             Filtros
@@ -255,16 +351,17 @@ const Incidencias: React.FC = () => {
         </div>
 
         {/* Filters */}
-        {showFilters && (
+        {mostrarFiltros && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Estado
               </label>
               <select
-                value={selectedFilter.estado}
-                onChange={(e) => setSelectedFilter(prev => ({ ...prev, estado: e.target.value as any }))}
+                value={filtros.estado}
+                onChange={(e) => setFiltros({ ...filtros, estado: e.target.value as any })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={cargando}
               >
                 <option value="todas">Todas</option>
                 <option value="abierta">Abierta</option>
@@ -279,9 +376,10 @@ const Incidencias: React.FC = () => {
                 Prioridad
               </label>
               <select
-                value={selectedFilter.prioridad}
-                onChange={(e) => setSelectedFilter(prev => ({ ...prev, prioridad: e.target.value as any }))}
+                value={filtros.prioridad}
+                onChange={(e) => setFiltros({ ...filtros, prioridad: e.target.value as any })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={cargando}
               >
                 <option value="todas">Todas</option>
                 <option value="critica">Crítica</option>
@@ -296,9 +394,10 @@ const Incidencias: React.FC = () => {
                 Categoría
               </label>
               <select
-                value={selectedFilter.categoria}
-                onChange={(e) => setSelectedFilter(prev => ({ ...prev, categoria: e.target.value }))}
+                value={filtros.categoria}
+                onChange={(e) => setFiltros({ ...filtros, categoria: e.target.value })}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={cargando}
               >
                 <option value="todas">Todas</option>
                 {categorias.map((categoria) => (
@@ -314,12 +413,29 @@ const Incidencias: React.FC = () => {
 
       {/* Incidencias List */}
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        {filteredIncidencias.length === 0 ? (
+        {cargando ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500">Cargando incidencias...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <AlertCircle className="mx-auto h-12 w-12 text-red-400 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error al cargar incidencias</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <button
+              onClick={cargarIncidencias}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
+        ) : incidencias.length === 0 ? (
           <div className="text-center py-12">
             <AlertCircle className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No hay incidencias</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || selectedFilter.estado !== 'todas' || selectedFilter.prioridad !== 'todas' || selectedFilter.categoria !== 'todas'
+              {filtros.busqueda || filtros.estado !== 'todas' || filtros.prioridad !== 'todas' || filtros.categoria !== 'todas'
                 ? 'No se encontraron incidencias con los filtros aplicados.'
                 : 'Aún no has reportado ninguna incidencia.'}
             </p>
@@ -335,18 +451,18 @@ const Incidencias: React.FC = () => {
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {filteredIncidencias.map((incidencia) => (
+            {incidencias.map((incidencia) => (
               <div
                 key={incidencia.id}
                 className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
-                onClick={() => setSelectedIncidencia(incidencia)}
+                onClick={() => setIncidenciaSeleccionada(incidencia)}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-3">
                       <div className={`w-3 h-3 rounded-full ${getPrioridadColor(incidencia.prioridad)}`}></div>
                       <h3 className="text-lg font-medium text-gray-900 truncate">
-                        #{incidencia.id} - {incidencia.titulo}
+                        {incidencia.codigo || `#${incidencia.id.substring(0, 8)}`} - {incidencia.titulo}
                       </h3>
                     </div>
                     
@@ -392,17 +508,15 @@ const Incidencias: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de detalle (placeholder) */}
-      {selectedIncidencia && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Incidencia #{selectedIncidencia.id}
-                </h3>
+      {/* Modal de detalle */}
+      {incidenciaSeleccionada && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">{incidenciaSeleccionada.codigo || `#${incidenciaSeleccionada.id.substring(0, 8)}`} - {incidenciaSeleccionada.titulo}</h2>
                 <button
-                  onClick={() => setSelectedIncidencia(null)}
+                  onClick={() => setIncidenciaSeleccionada(null)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <XCircle className="h-6 w-6" />
@@ -410,40 +524,41 @@ const Incidencias: React.FC = () => {
               </div>
               
               <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-gray-900">{selectedIncidencia.titulo}</h4>
-                  <p className="mt-1 text-sm text-gray-600">{selectedIncidencia.descripcion}</p>
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    getEstadoColor(incidenciaSeleccionada.estado)
+                  }`}>
+                    {incidenciaSeleccionada.estado.charAt(0).toUpperCase() + incidenciaSeleccionada.estado.slice(1)}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    getPrioridadColor(incidenciaSeleccionada.prioridad)
+                  }`}>
+                    {incidenciaSeleccionada.prioridad.charAt(0).toUpperCase() + incidenciaSeleccionada.prioridad.slice(1)}
+                  </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900 mb-2">Descripción</h3>
+                  <p className="text-gray-600">{incidenciaSeleccionada.descripcion}</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="font-medium text-gray-700">Estado:</span>
-                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getEstadoColor(selectedIncidencia.estado)}`}>
-                      {selectedIncidencia.estado.replace('_', ' ').toUpperCase()}
-                    </span>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Fecha de creación</h3>
+                    <p className="text-gray-600">{formatearFecha(incidenciaSeleccionada.created_at)}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Prioridad:</span>
-                    <span className="ml-2 capitalize">{selectedIncidencia.prioridad}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Categoría:</span>
-                    <span className="ml-2">{(selectedIncidencia as any).categorias?.nombre}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-gray-700">Creada:</span>
-                    <span className="ml-2">{formatDate(selectedIncidencia.created_at)}</span>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Código de incidencia</h3>
+                    <p className="text-gray-600">{incidenciaSeleccionada.codigo || `#${incidenciaSeleccionada.id.substring(0, 8)}`}</p>
                   </div>
                 </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setSelectedIncidencia(null)}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  Cerrar
-                </button>
+                
+                {(incidenciaSeleccionada as any).categorias && (
+                  <div>
+                    <h3 className="text-sm font-medium text-gray-900 mb-1">Categoría</h3>
+                    <p className="text-gray-600">{(incidenciaSeleccionada as any).categorias.nombre}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

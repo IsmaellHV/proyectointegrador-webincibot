@@ -74,6 +74,7 @@ export interface Database {
           estado: 'abierta' | 'en_progreso' | 'resuelta' | 'cerrada'
           prioridad: 'baja' | 'media' | 'alta' | 'critica'
           asignado_a: string | null
+          codigo: string | null
           created_at: string
           updated_at: string
           resolved_at: string | null
@@ -87,6 +88,7 @@ export interface Database {
           estado?: 'abierta' | 'en_progreso' | 'resuelta' | 'cerrada'
           prioridad?: 'baja' | 'media' | 'alta' | 'critica'
           asignado_a?: string | null
+          codigo?: string | null
           created_at?: string
           updated_at?: string
           resolved_at?: string | null
@@ -100,6 +102,7 @@ export interface Database {
           estado?: 'abierta' | 'en_progreso' | 'resuelta' | 'cerrada'
           prioridad?: 'baja' | 'media' | 'alta' | 'critica'
           asignado_a?: string | null
+          codigo?: string | null
           created_at?: string
           updated_at?: string
           resolved_at?: string | null

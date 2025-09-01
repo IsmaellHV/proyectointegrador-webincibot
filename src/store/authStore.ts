@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Usuario } from '../types/database';
+import { signIn, signOut, getCurrentUserProfile, supabase } from '../lib/supabase';
 
 interface AuthStore {
   // Estado de autenticación
@@ -19,39 +20,20 @@ interface AuthStore {
   retryAuth: () => Promise<void>;
 }
 
-// Usuarios de prueba para la demo
-const DEMO_USERS: Usuario[] = [
-  {
-    id: '1',
-    email: 'admin.sistema@gmail.com',
-    nombre: 'Administrador Sistema',
-    rol: 'administrador',
-    password_hash: 'password123',
-    activo: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    email: 'soporte.tecnico@gmail.com',
-    nombre: 'Soporte Técnico',
-    rol: 'soporte',
-    password_hash: 'password123',
-    activo: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    email: 'usuario.personal@gmail.com',
-    nombre: 'Usuario Personal',
-    rol: 'personal',
-    password_hash: 'password123',
-    activo: true,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-];
+// Función para verificar la sesión actual de Supabase
+const checkSupabaseSession = async (): Promise<Usuario | null> => {
+  try {
+    const profile = await getCurrentUserProfile();
+    if (profile) {
+      console.log('🔍 [AUTH] Usuario encontrado en Supabase:', profile.email);
+      return profile;
+    }
+    return null;
+  } catch (error) {
+    console.error('🔍 [AUTH] Error verificando sesión:', error);
+    return null;
+  }
+};
 
 // Clave para localStorage
 const STORAGE_KEY = 'incibot_user_data';
@@ -88,9 +70,30 @@ const clearUserFromStorage = () => {
 };
 
 // ---------- Utilidades ----------
-const validateCredentials = (email: string, password: string): Usuario | null => {
-  const user = DEMO_USERS.find(u => u.email === email && u.password_hash === password);
-  return user || null;
+const authenticateWithSupabase = async (email: string, password: string): Promise<{ user: Usuario | null; error?: string }> => {
+  try {
+    const { user: authUser, error } = await signIn(email, password);
+    
+    if (error) {
+      return { user: null, error: error.message };
+    }
+    
+    if (!authUser) {
+      return { user: null, error: 'No se pudo autenticar el usuario' };
+    }
+    
+    // Obtener el perfil completo del usuario
+    const profile = await getCurrentUserProfile();
+    
+    if (!profile) {
+      return { user: null, error: 'No se pudo obtener el perfil del usuario' };
+    }
+    
+    return { user: profile };
+  } catch (error) {
+    console.error('🔍 [AUTH] Error en autenticación:', error);
+    return { user: null, error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
 };
 
 // Función simplificada para aplicar estado de autenticación
@@ -119,15 +122,39 @@ const applyAuthState = (user: Usuario | null, set: any) => {
 };
 
 export const useAuthStore = create<AuthStore>((set, get) => {
-  // Hidratar inmediatamente desde localStorage
-  const storedUser = getUserFromStorage();
+  // Verificar sesión de Supabase al inicializar
+  const initializeAuth = async () => {
+    console.log('🔄 [AUTH] Inicializando autenticación...');
+    
+    // COMENTADO: No limpiar localStorage automáticamente para mantener sesiones
+    // console.log('🧹 [AUTH] Limpiando TODO el localStorage...');
+    // localStorage.clear();
+    
+    // Limpiar localStorage si contiene datos de prueba
+    const storedUser = getUserFromStorage();
+    console.log('🔍 [AUTH] Usuario en localStorage después de limpiar:', storedUser);
+    
+    if (storedUser && (storedUser.id === '1' || storedUser.id === 1 || typeof storedUser.id === 'number')) {
+      console.log('🧹 [AUTH] FORZANDO limpieza de datos de prueba del localStorage');
+      clearUserFromStorage();
+      localStorage.clear();
+    }
+    
+    // Verificar si hay una sesión activa en Supabase
+    const currentUser = await checkSupabaseSession();
+    console.log('🔍 [AUTH] Usuario de Supabase:', currentUser ? currentUser.email : 'No encontrado');
+    applyAuthState(currentUser, set);
+  };
+  
+  // Inicializar autenticación
+  initializeAuth();
   
   return {
-    // Estado inicial
-    user: storedUser,
-    isLoading: false,
-    isAuthenticated: !!storedUser,
-    sessionVerified: !!storedUser,
+    // Estado inicial - empezamos con loading true hasta verificar Supabase
+    user: null,
+    isLoading: true,
+    isAuthenticated: false,
+    sessionVerified: false,
     connectionError: false,
     error: null,
 
@@ -135,33 +162,45 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     login: async (email: string, password: string) => {
       set({ isLoading: true, error: null });
       
-      // Simular delay de red para la demo
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       try {
-        const user = validateCredentials(email, password);
+        const { user, error } = await authenticateWithSupabase(email, password);
         
         if (user) {
           applyAuthState(user, set);
+          console.log('✅ [AUTH] Login exitoso:', user.email);
           return { success: true };
         } else {
-          set({ isLoading: false, error: 'Credenciales incorrectas' });
-          return { success: false, error: 'Credenciales incorrectas' };
+          set({ isLoading: false, error: error || 'Credenciales incorrectas' });
+          return { success: false, error: error || 'Credenciales incorrectas' };
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
         set({ isLoading: false, error: errorMessage });
+        console.error('❌ [AUTH] Error en login:', errorMessage);
         return { success: false, error: errorMessage };
       }
     },
 
-    logout: () => {
-      applyAuthState(null, set);
+    logout: async () => {
+      try {
+        await signOut();
+        applyAuthState(null, set);
+        console.log('✅ [AUTH] Logout exitoso');
+      } catch (error) {
+        console.error('❌ [AUTH] Error en logout:', error);
+        // Aún así limpiar el estado local
+        applyAuthState(null, set);
+      }
     },
 
-    checkAuth: () => {
-      const storedUser = getUserFromStorage();
-      applyAuthState(storedUser, set);
+    checkAuth: async () => {
+      try {
+        const currentUser = await checkSupabaseSession();
+        applyAuthState(currentUser, set);
+      } catch (error) {
+        console.error('❌ [AUTH] Error verificando autenticación:', error);
+        applyAuthState(null, set);
+      }
     },
 
     updateUser: (userData: Partial<Usuario>) => {
@@ -177,8 +216,13 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     },
 
     retryAuth: async () => {
-      const storedUser = getUserFromStorage();
-      applyAuthState(storedUser, set);
+      try {
+        const currentUser = await checkSupabaseSession();
+        applyAuthState(currentUser, set);
+      } catch (error) {
+        console.error('❌ [AUTH] Error en retry auth:', error);
+        applyAuthState(null, set);
+      }
     },
   };
 });

@@ -518,20 +518,41 @@ export const crearIncidencia = async (descripcion: string, usuarioId: string): P
 // Función para obtener incidencias de un usuario
 export const obtenerIncidenciasUsuario = async (usuarioId: string) => {
   try {
+    console.log('🔍 [DEBUG] obtenerIncidenciasUsuario iniciado')
+    console.log('🔍 [DEBUG] usuarioId recibido:', usuarioId)
+    console.log('🔍 [DEBUG] Tipo de usuarioId:', typeof usuarioId)
+    
     const { data, error } = await supabase
       .from('incidencias')
       .select(`
-        *,
+        id,
+        titulo,
+        descripcion,
+        estado,
+        prioridad,
+        categoria_id,
+        usuario_id,
+        created_at,
+        updated_at,
+        codigo,
         categorias(nombre, descripcion),
         respuestas(id, contenido, created_at)
       `)
       .eq('usuario_id', usuarioId)
       .order('created_at', { ascending: false })
     
-    if (error) throw error
+    console.log('🔍 [DEBUG] Consulta ejecutada con usuario_id:', usuarioId)
+    console.log('🔍 [DEBUG] Resultado de la consulta:', { data, error })
+    console.log('🔍 [DEBUG] Cantidad de resultados:', data?.length || 0)
+    
+    if (error) {
+      console.error('❌ [DEBUG] Error en consulta Supabase:', error)
+      throw error
+    }
+    
     return data || []
   } catch (error) {
-    console.error('Error obteniendo incidencias:', error)
+    console.error('❌ Error obteniendo incidencias:', error)
     throw error
   }
 }
@@ -560,3 +581,172 @@ export const obtenerIncidencia = async (incidenciaId: string) => {
     throw error
   }
 };
+
+// Función para crear una respuesta
+export const crearRespuesta = async (
+  incidenciaId: string,
+  usuarioId: string,
+  contenido: string,
+  tipo: 'respuesta' | 'nota_interna' | 'solucion' = 'respuesta'
+) => {
+  try {
+    const { data, error } = await supabase
+      .from('respuestas')
+      .insert({
+        incidencia_id: incidenciaId,
+        usuario_id: usuarioId,
+        contenido,
+        tipo
+      })
+      .select(`
+        *,
+        usuarios(nombre, email)
+      `)
+      .single()
+    
+    if (error) {
+      console.error('Error creando respuesta:', error)
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Error en crearRespuesta:', error)
+    throw error
+  }
+};
+
+// Función para obtener todas las categorías activas
+export const obtenerCategorias = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('categorias')
+      .select('*')
+      .eq('activa', true)
+      .order('nombre', { ascending: true })
+    
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error obteniendo categorías:', error)
+    throw error
+  }
+}
+
+// ===== FUNCIONES DE ASIGNACIÓN MEJORADA =====
+
+// Función para obtener usuarios de soporte disponibles
+export const obtenerUsuariosSoporte = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_support_users')
+    
+    if (error) {
+      console.error('Error obteniendo usuarios de soporte:', error)
+      throw error
+    }
+    
+    return data || []
+  } catch (error) {
+    console.error('Error en obtenerUsuariosSoporte:', error)
+    throw error
+  }
+}
+
+// Función para obtener estadísticas de carga de trabajo
+export const obtenerCargaTrabajo = async () => {
+  try {
+    const { data, error } = await supabase
+      .rpc('get_support_workload')
+    
+    if (error) {
+      console.error('Error obteniendo carga de trabajo:', error)
+      throw error
+    }
+    
+    return data || []
+  } catch (error) {
+    console.error('Error en obtenerCargaTrabajo:', error)
+    throw error
+  }
+}
+
+// Función para asignar automáticamente una incidencia
+export const asignarIncidenciaAutomatica = async (incidenciaId: string) => {
+  try {
+    const { data, error } = await supabase
+      .rpc('auto_assign_incident', { incident_id: incidenciaId })
+    
+    if (error) {
+      console.error('Error en asignación automática:', error)
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Error en asignarIncidenciaAutomatica:', error)
+    throw error
+  }
+}
+
+// Función para asignar manualmente una incidencia a un usuario específico
+export const asignarIncidenciaManual = async (incidenciaId: string, usuarioId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('incidencias')
+      .update({
+        asignado_a: usuarioId,
+        estado: 'en_progreso',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', incidenciaId)
+      .select(`
+        *,
+        categoria:categorias(*),
+        usuario:usuarios!incidencias_usuario_id_fkey(*),
+        asignado:usuarios!incidencias_asignado_a_fkey(*)
+      `)
+      .single()
+    
+    if (error) {
+      console.error('Error en asignación manual:', error)
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Error en asignarIncidenciaManual:', error)
+    throw error
+  }
+}
+
+// Función para desasignar una incidencia
+export const desasignarIncidencia = async (incidenciaId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('incidencias')
+      .update({
+        asignado_a: null,
+        estado: 'abierta',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', incidenciaId)
+      .select(`
+        *,
+        categoria:categorias(*),
+        usuario:usuarios!incidencias_usuario_id_fkey(*),
+        asignado:usuarios!incidencias_asignado_a_fkey(*)
+      `)
+      .single()
+    
+    if (error) {
+      console.error('Error desasignando incidencia:', error)
+      throw error
+    }
+    
+    return data
+  } catch (error) {
+    console.error('Error en desasignarIncidencia:', error)
+    throw error
+  }
+}

@@ -59,6 +59,10 @@ const Layout: React.FC = () => {
   const { canAccess } = useRole();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  console.log('🏗️ [LAYOUT] Renderizando Layout - Ruta actual:', location.pathname);
+  console.log('🏗️ [LAYOUT] Usuario:', user?.email);
+  console.log('🎯 [LAYOUT] Renderizando Layout con Outlet')
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -238,6 +242,7 @@ const Layout: React.FC = () => {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+              {console.log('🎯 [LAYOUT] Renderizando Outlet para ruta:', location.pathname)}
               <Outlet />
             </div>
           </div>

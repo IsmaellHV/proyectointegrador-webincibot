@@ -34,14 +34,21 @@ const Login: React.FC = () => {
 
   // Limpiar errores cuando el componente se monta y cargar datos guardados
   useEffect(() => {
-    clearError();
-
-    // Cargar email guardado si existe
-    const emailGuardado = localStorage.getItem('recordarEmail');
-    if (emailGuardado) {
-      setValue('email', emailGuardado);
+    // COMENTADO: No limpiar localStorage automáticamente
+    // console.log('🧹 [LOGIN] Limpiando localStorage...');
+    // localStorage.clear();
+    
+    // Verificar si hay un email recordado
+    const emailRecordado = localStorage.getItem('recordarEmail');
+    if (emailRecordado) {
+      setValue('email', emailRecordado);
       setValue('recordarPassword', true);
     }
+
+    // Auto-completar credenciales para pruebas (sin auto-login)
+    console.log('🔧 [LOGIN] Auto-completando credenciales de prueba...');
+    setValue('email', 'soporte.tecnico@gmail.com');
+    setValue('password', 'password123');
   }, [clearError, setValue]);
 
   // Limpiar errores cuando el usuario empieza a escribir

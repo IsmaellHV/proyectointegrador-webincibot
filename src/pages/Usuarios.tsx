@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Search, Plus, Edit3, Trash2, UserCheck, UserX, Mail, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
+import { supabase } from '../lib/supabase'
 import type { Usuario } from '../types/database'
 
 interface UsuarioForm {
@@ -11,63 +12,11 @@ interface UsuarioForm {
   activo: boolean
 }
 
-// Datos de demostración para usuarios
-const DEMO_USUARIOS: Usuario[] = [
-  {
-    id: '1',
-    nombre: 'Ana García',
-    email: 'ana.garcia@empresa.com',
-    rol: 'administrador',
-    password_hash: '$2b$10$demo.hash.for.ana.garcia',
-    activo: true,
-    created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    nombre: 'Carlos López',
-    email: 'carlos.lopez@empresa.com',
-    rol: 'soporte',
-    password_hash: '$2b$10$demo.hash.for.carlos.lopez',
-    activo: true,
-    created_at: '2024-01-20T14:30:00Z',
-    updated_at: '2024-01-20T14:30:00Z'
-  },
-  {
-    id: '3',
-    nombre: 'María Rodríguez',
-    email: 'maria.rodriguez@empresa.com',
-    rol: 'personal',
-    password_hash: '$2b$10$demo.hash.for.maria.rodriguez',
-    activo: true,
-    created_at: '2024-02-01T09:15:00Z',
-    updated_at: '2024-02-01T09:15:00Z'
-  },
-  {
-    id: '4',
-    nombre: 'Juan Pérez',
-    email: 'juan.perez@empresa.com',
-    rol: 'personal',
-    password_hash: '$2b$10$demo.hash.for.juan.perez',
-    activo: false,
-    created_at: '2024-02-10T16:45:00Z',
-    updated_at: '2024-02-15T11:20:00Z'
-  },
-  {
-    id: '5',
-    nombre: 'Laura Martínez',
-    email: 'laura.martinez@empresa.com',
-    rol: 'soporte',
-    password_hash: '$2b$10$demo.hash.for.laura.martinez',
-    activo: true,
-    created_at: '2024-02-20T13:00:00Z',
-    updated_at: '2024-02-20T13:00:00Z'
-  }
-]
+
 
 const Usuarios: React.FC = () => {
   const { user } = useAuthStore()
-  const [usuarios, setUsuarios] = useState<Usuario[]>(DEMO_USUARIOS)
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedRol, setSelectedRol] = useState('todos')
@@ -84,19 +33,33 @@ const Usuarios: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    // Simular carga inicial
-    setLoading(true)
-    setTimeout(() => {
-      setLoading(false)
-    }, 500)
+    loadUsuarios()
   }, [])
 
-  const loadUsuarios = () => {
-    // En modo demo, los datos ya están cargados
-    setUsuarios([...DEMO_USUARIOS])
+  const loadUsuarios = async () => {
+    try {
+      setLoading(true)
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (error) {
+        console.error('Error loading users:', error)
+        toast.error('Error al cargar los usuarios')
+        return
+      }
+      
+      setUsuarios(data || [])
+    } catch (error) {
+      console.error('Error loading users:', error)
+      toast.error('Error al cargar los usuarios')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const validateForm = (): boolean => {
+  const validateForm = async (): Promise<boolean> => {
     const errors: Partial<UsuarioForm> = {}
 
     if (!formData.nombre.trim()) {
@@ -109,15 +72,21 @@ const Usuarios: React.FC = () => {
       errors.email = 'El email no es válido'
     } else if (!formData.email.endsWith('@empresa.com')) {
       errors.email = 'Debe usar un email corporativo (@empresa.com)'
-    }
-
-    // Verificar email único (solo para nuevos usuarios o si cambió el email)
-    const emailExists = usuarios.some(u => 
-      u.email === formData.email && 
-      (!editingUser || u.id !== editingUser.id)
-    )
-    if (emailExists) {
-      errors.email = 'Este email ya está registrado'
+    } else {
+      // Verificar email único en la base de datos
+      try {
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('email', formData.email.trim().toLowerCase())
+          .single()
+        
+        if (!error && data && (!editingUser || data.id !== editingUser.id)) {
+          errors.email = 'Este email ya está registrado'
+        }
+      } catch (error) {
+        // Si no encuentra el email, está disponible
+      }
     }
 
     setFormErrors(errors)
@@ -127,46 +96,54 @@ const Usuarios: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!validateForm()) return
+    if (!(await validateForm())) return
 
     setSubmitting(true)
-    
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 1000))
     
     try {
       if (editingUser) {
         // Actualizar usuario existente
-        const updatedUsuarios = usuarios.map(u => 
-          u.id === editingUser.id 
-            ? {
-                ...u,
-                nombre: formData.nombre.trim(),
-                email: formData.email.trim().toLowerCase(),
-                rol: formData.rol,
-                activo: formData.activo,
-                updated_at: new Date().toISOString()
-              }
-            : u
-        )
-        setUsuarios(updatedUsuarios)
+        const { error } = await supabase
+          .from('usuarios')
+          .update({
+            nombre: formData.nombre.trim(),
+            email: formData.email.trim().toLowerCase(),
+            rol: formData.rol,
+            activo: formData.activo,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingUser.id)
+        
+        if (error) {
+          console.error('Error updating user:', error)
+          toast.error('Error al actualizar el usuario')
+          return
+        }
+        
         toast.success('Usuario actualizado exitosamente')
       } else {
         // Crear nuevo usuario
-        const newUser: Usuario = {
-          id: Date.now().toString(),
-          nombre: formData.nombre.trim(),
-          email: formData.email.trim().toLowerCase(),
-          rol: formData.rol,
-          password_hash: '$2b$10$demo.hash.for.new.user',
-          activo: formData.activo,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+        const { error } = await supabase
+          .from('usuarios')
+          .insert({
+            nombre: formData.nombre.trim(),
+            email: formData.email.trim().toLowerCase(),
+            rol: formData.rol,
+            password_hash: '$2b$10$demo.hash.for.new.user',
+            activo: formData.activo
+          })
+        
+        if (error) {
+          console.error('Error creating user:', error)
+          toast.error('Error al crear el usuario')
+          return
         }
-        setUsuarios([newUser, ...usuarios])
+        
         toast.success('Usuario creado exitosamente')
       }
 
+      // Recargar la lista de usuarios
+      await loadUsuarios()
       closeModal()
     } catch (error: any) {
       console.error('Error saving user:', error)
@@ -178,19 +155,22 @@ const Usuarios: React.FC = () => {
 
   const toggleUserStatus = async (usuario: Usuario) => {
     try {
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const { error } = await supabase
+        .from('usuarios')
+        .update({
+          activo: !usuario.activo,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', usuario.id)
       
-      const updatedUsuarios = usuarios.map(u => 
-        u.id === usuario.id 
-          ? {
-              ...u,
-              activo: !u.activo,
-              updated_at: new Date().toISOString()
-            }
-          : u
-      )
-      setUsuarios(updatedUsuarios)
+      if (error) {
+        console.error('Error toggling user status:', error)
+        toast.error('Error al cambiar el estado del usuario')
+        return
+      }
+      
+      // Recargar la lista de usuarios
+      await loadUsuarios()
       toast.success(`Usuario ${!usuario.activo ? 'activado' : 'desactivado'} exitosamente`)
     } catch (error) {
       console.error('Error toggling user status:', error)
@@ -204,11 +184,19 @@ const Usuarios: React.FC = () => {
     }
 
     try {
-      // Simular delay de red
-      await new Promise(resolve => setTimeout(resolve, 500))
+      const { error } = await supabase
+        .from('usuarios')
+        .delete()
+        .eq('id', usuario.id)
       
-      const updatedUsuarios = usuarios.filter(u => u.id !== usuario.id)
-      setUsuarios(updatedUsuarios)
+      if (error) {
+        console.error('Error deleting user:', error)
+        toast.error('Error al eliminar el usuario')
+        return
+      }
+      
+      // Recargar la lista de usuarios
+      await loadUsuarios()
       toast.success('Usuario eliminado exitosamente')
     } catch (error: any) {
       console.error('Error deleting user:', error)

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Auto Login</title>
+</head>
+<body>
+    <script>
+        // Esperar 2 segundos y hacer login
+        setTimeout(() => {
+            // Ir a la página de login
+            window.location.href = 'http://localhost:5173/login';
+            
+            // Esperar a que cargue y hacer submit
+            setTimeout(() => {
+                const form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                }
+            }, 3000);
+        }, 1000);
+    </script>
+</body>
+</html>

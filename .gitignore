@@ -33,3 +33,4 @@ docker-compose.yml
 coverage
 __tests__
 __supabase__
+supabase

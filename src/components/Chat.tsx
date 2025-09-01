@@ -11,6 +11,18 @@ interface MensajeDemo {
   tipo: 'usuario' | 'bot' | 'sistema';
   timestamp: string;
   usuario_id?: string;
+  categoria?: string;
+  esBienvenida?: boolean;
+  esSeleccionCategoria?: boolean;
+}
+
+type CategoriaIncidente = 'Hardware' | 'Software' | 'Red' | 'Seguridad';
+
+interface EstadoChat {
+  mostrarBienvenida: boolean;
+  mostrarCategorias: boolean;
+  categoriaSeleccionada: CategoriaIncidente | null;
+  conversacionIniciada: boolean;
 }
 
 interface ConversacionDemo {
@@ -69,7 +81,15 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
   const [enviando, setEnviando] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [conversacionActual, setConversacionActual] = useState<string | null>(conversacionId || null);
+  const [estadoChat, setEstadoChat] = useState<EstadoChat>({
+    mostrarBienvenida: true,
+    mostrarCategorias: false,
+    categoriaSeleccionada: null,
+    conversacionIniciada: false
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const categorias: CategoriaIncidente[] = ['Hardware', 'Software', 'Red', 'Seguridad'];
 
   // Scroll automático al final
   const scrollToBottom = () => {
@@ -84,8 +104,86 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
   useEffect(() => {
     if (conversacionActual) {
       cargarMensajes();
+    } else {
+      // Si no hay conversación, mostrar bienvenida
+      mostrarMensajeBienvenida();
     }
   }, [conversacionActual]);
+
+  // Mostrar mensaje de bienvenida automático
+  const mostrarMensajeBienvenida = () => {
+    if (!estadoChat.conversacionIniciada && estadoChat.mostrarBienvenida) {
+      const mensajeBienvenida: MensajeDemo = {
+        id: 'bienvenida-' + Date.now(),
+        contenido: '¡Bienvenido/a al Sistema de Gestión de Incidencias INCIBOT! 🎯\n\nSoy tu asistente especializado en la **recopilación de información** para generar tickets de soporte técnico de manera automática.\n\n📋 **Mi función principal es:**\n• Recopilar todos los detalles de tu problema\n• Identificar la categoría correcta\n• Generar automáticamente tu ticket de incidencia\n• Proporcionarte el código de seguimiento\n\n🚀 **Para comenzar, selecciona la categoría que mejor describe tu consulta:**',
+        tipo: 'bot',
+        timestamp: new Date().toISOString(),
+        esBienvenida: true
+      };
+      
+      setMensajes([mensajeBienvenida]);
+      setEstadoChat(prev => ({
+        ...prev,
+        mostrarCategorias: true,
+        mostrarBienvenida: false
+      }));
+    }
+  };
+
+  // Manejar selección de categoría
+  const seleccionarCategoria = (categoria: CategoriaIncidente) => {
+    if (!user) return;
+
+    // Crear mensaje del usuario seleccionando categoría
+    const mensajeCategoria: MensajeDemo = {
+      id: Date.now().toString(),
+      contenido: `He seleccionado la categoría: ${categoria}`,
+      tipo: 'usuario',
+      timestamp: new Date().toISOString(),
+      usuario_id: user.id,
+      categoria
+    };
+
+    // Crear respuesta del bot
+    const respuestaBot: MensajeDemo = {
+      id: (Date.now() + 1).toString(),
+      contenido: obtenerRespuestaCategoria(categoria),
+      tipo: 'bot',
+      timestamp: new Date().toISOString()
+    };
+
+    // Crear nueva conversación si no existe
+    let conversacionId = conversacionActual;
+    if (!conversacionId) {
+      conversacionId = crearNuevaConversacion(`Consulta de ${categoria}`);
+      if (!conversacionId) return;
+    }
+
+    // Agregar mensajes al localStorage y estado
+    agregarMensajeLocal(conversacionId, mensajeCategoria);
+    agregarMensajeLocal(conversacionId, respuestaBot);
+
+    // Actualizar estado directamente sin recargar desde localStorage
+    setMensajes(prev => [...prev, mensajeCategoria, respuestaBot]);
+    setEstadoChat(prev => ({
+      ...prev,
+      categoriaSeleccionada: categoria,
+      mostrarCategorias: false,
+      conversacionIniciada: true
+    }));
+  };
+
+  // Obtener respuesta según categoría seleccionada
+  const obtenerRespuestaCategoria = (categoria: CategoriaIncidente): string => {
+    const respuestas = {
+      'Hardware': '🔧 **Categoría seleccionada: Hardware**\n\nPerfecto, ahora recopilaré toda la información necesaria para generar tu ticket de incidencia de hardware.\n\n📝 **Para crear tu ticket, necesito que me proporciones:**\n• Descripción detallada del problema\n• Equipo o componente afectado\n• Cuándo comenzó el problema\n• Pasos que ya intentaste\n• Impacto en tu trabajo\n\n💬 **Cuéntame con el mayor detalle posible qué está ocurriendo:**',
+      'Software': '💻 **Categoría seleccionada: Software**\n\nExcelente, procederé a recopilar la información necesaria para generar tu ticket de incidencia de software.\n\n📝 **Para crear tu ticket, necesito que me proporciones:**\n• Aplicación o sistema afectado\n• Descripción del error o problema\n• Mensajes de error (si los hay)\n• Cuándo ocurre el problema\n• Impacto en tus actividades\n\n💬 **Describe detalladamente el problema que estás experimentando:**',
+      'Red': '🌐 **Categoría seleccionada: Red**\n\nEntendido, recopilaré todos los detalles para generar tu ticket de incidencia de red.\n\n📝 **Para crear tu ticket, necesito que me proporciones:**\n• Tipo de problema de conectividad\n• Dispositivos afectados\n• Cuándo comenzó el problema\n• Velocidad o servicios impactados\n• Ubicación donde ocurre\n\n💬 **Explícame en detalle qué dificultades tienes con la red:**',
+      'Seguridad': '🔒 **Categoría seleccionada: Seguridad**\n\nMuy bien, recopilaré la información crítica para generar tu ticket de incidencia de seguridad con la prioridad adecuada.\n\n📝 **Para crear tu ticket, necesito que me proporciones:**\n• Tipo de amenaza o problema de seguridad\n• Sistemas o datos potencialmente afectados\n• Cuándo detectaste el problema\n• Acciones que ya tomaste\n• Urgencia del caso\n\n💬 **Describe detalladamente la situación de seguridad:**'
+    };
+    
+    return respuestas[categoria];
+  };
 
   // Cargar mensajes de la conversación local
   const cargarMensajes = () => {
@@ -98,6 +196,15 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
       
       if (conversacion) {
         setMensajes(conversacion.mensajes);
+        // Si ya hay mensajes, la conversación está iniciada
+        if (conversacion.mensajes.length > 0) {
+          setEstadoChat(prev => ({
+            ...prev,
+            conversacionIniciada: true,
+            mostrarBienvenida: false,
+            mostrarCategorias: false
+          }));
+        }
       } else {
         setMensajes([]);
       }
@@ -161,10 +268,8 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
         usuario_id: user.id
       };
 
-      // Agregar mensaje del usuario
+      // Agregar mensaje del usuario al estado y localStorage
       agregarMensajeLocal(conversacionId, mensajeUsuario);
-      
-      // Actualizar estado local inmediatamente
       setMensajes(prev => [...prev, mensajeUsuario]);
 
       // Simular respuesta del bot después de un breve delay
@@ -179,6 +284,7 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
             timestamp: new Date().toISOString()
           };
           
+          // Agregar respuesta del bot al estado y localStorage
           agregarMensajeLocal(conversacionId!, mensajeBot);
           setMensajes(prev => [...prev, mensajeBot]);
         } catch (error) {
@@ -194,52 +300,71 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
     }
   };
 
-  // Generar respuesta automática del bot (versión simplificada)
+  // Generar respuesta usando OpenAI API
   const generarRespuestaBot = async (mensajeUsuario: string): Promise<string> => {
-    // Simular procesamiento
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    const mensaje = mensajeUsuario.toLowerCase()
-    
-    // Detectar si es un problema técnico
-    const esProblema = mensaje.includes('problema') || mensaje.includes('error') || 
-                      mensaje.includes('falla') || mensaje.includes('no funciona') ||
-                      mensaje.includes('no puedo') || mensaje.includes('bloqueado') ||
-                      mensaje.includes('lento') || mensaje.includes('demora') ||
-                      mensaje.includes('crítico') || mensaje.includes('urgente') ||
-                      mensaje.includes('sistema caído') || mensaje.includes('emergencia')
-    
-    // Si es un problema, simular creación de incidencia
-    if (esProblema && user?.id) {
-      const incidenciaId = Date.now().toString().slice(-6); // ID simulado
-      console.log('🔍 Detectado problema técnico (modo demo), simulando incidencia...')
+    try {
+      // Construir historial de conversación para contexto
+      const historialConversacion = mensajes
+        .filter(m => m.tipo !== 'sistema')
+        .map(m => ({
+          role: m.tipo === 'usuario' ? 'user' as const : 'assistant' as const,
+          content: m.contenido
+        }));
+
+      // Llamar al endpoint del backend
+      const response = await fetch('http://localhost:3002/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: mensajeUsuario,
+          conversationHistory: historialConversacion
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error en la respuesta del servidor');
+      }
+
+      const data = await response.json();
       
-      return `He detectado que tienes un problema técnico y he registrado tu consulta como incidencia #${incidenciaId} (modo demostración).\n\n📋 **Detalles de la incidencia:**\n- **ID:** #${incidenciaId}\n- **Título:** ${mensajeUsuario.substring(0, 50)}...\n- **Prioridad:** Media\n- **Estado:** Pendiente\n\nEn un entorno real, nuestro equipo técnico revisaría tu caso. ¿Hay algo más en lo que pueda ayudarte?`
+      if (!data.success) {
+        throw new Error(data.error || 'Error procesando la respuesta');
+      }
+
+      return data.data.message;
+
+    } catch (error: any) {
+      console.error('Error llamando a OpenAI API:', error);
+      
+      // Fallback a respuestas locales en caso de error
+      if (error.message.includes('fetch')) {
+        return 'Lo siento, hay un problema de conexión con el servidor. Por favor, intenta más tarde o contacta al administrador del sistema.';
+      }
+      
+      if (error.message.includes('quota') || error.message.includes('rate_limit')) {
+        return 'El servicio está temporalmente sobrecargado. Por favor, intenta nuevamente en unos minutos.';
+      }
+      
+      // Respuesta de fallback genérica
+      return 'Disculpa, estoy experimentando dificultades técnicas en este momento. ¿Podrías intentar reformular tu pregunta o contactar directamente al equipo de soporte?';
     }
+  };
+
+
+
+  // Obtener prioridad según categoría
+  const obtenerPrioridadPorCategoria = (categoria: CategoriaIncidente | null): string => {
+    const prioridades = {
+      'Seguridad': 'Alta',
+      'Hardware': 'Media',
+      'Software': 'Media',
+      'Red': 'Media'
+    };
     
-    // Respuestas básicas del bot
-    if (mensaje.includes('hola') || mensaje.includes('buenos') || mensaje.includes('saludos')) {
-      return '¡Hola! Soy el asistente virtual de INCIBOT. ¿En qué puedo ayudarte hoy? Si tienes algún problema técnico, puedo registrar tu consulta para que nuestro equipo te asista.';
-    }
-    
-    if (mensaje.includes('gracias') || mensaje.includes('perfecto') || mensaje.includes('excelente')) {
-      return '¡De nada! Me alegra poder ayudarte. ¿Hay algo más en lo que pueda asistirte?';
-    }
-    
-    if (mensaje.includes('incidencia') || mensaje.includes('ticket') || mensaje.includes('reporte')) {
-      return 'Si necesitas reportar un problema técnico, simplemente descríbeme el inconveniente y registraré tu consulta para que nuestro equipo técnico pueda asistirte.';
-    }
-    
-    if (mensaje.includes('adiós') || mensaje.includes('hasta luego') || mensaje.includes('chao')) {
-      return '¡Hasta luego! No dudes en contactarme si necesitas ayuda en el futuro.';
-    }
-    
-    if (mensaje.includes('chat') || mensaje.includes('funciona') || mensaje.includes('test')) {
-      return '¡El chat está funcionando perfectamente! Estoy aquí para ayudarte con cualquier consulta o problema técnico que tengas.';
-    }
-    
-    // Respuesta por defecto
-    return 'Entiendo tu consulta. ¿Podrías proporcionar más detalles para poder asistirte mejor? Si se trata de un problema técnico, puedo registrar tu consulta para que nuestro equipo especializado te ayude.';
+    return categoria ? prioridades[categoria] : 'Media';
   };
 
   // Formatear fecha
@@ -273,46 +398,77 @@ const Chat: React.FC<ChatProps> = ({ conversacionId, onConversacionCreada }) => 
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-        ) : mensajes.length === 0 ? (
+        ) : mensajes.length === 0 && !estadoChat.mostrarBienvenida ? (
           <div className="text-center text-gray-500 mt-8">
             <Bot className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p className="text-lg font-medium">¡Bienvenido al chat de INCIBOT!</p>
             <p className="text-sm mt-2">Escribe un mensaje para comenzar la conversación.</p>
           </div>
         ) : (
-          mensajes.map((mensaje) => (
-            <div
-              key={mensaje.id}
-              className={`flex ${mensaje.tipo === 'usuario' ? 'justify-end' : 'justify-start'}`}
-            >
+          <>
+            {mensajes.map((mensaje) => (
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  mensaje.tipo === 'usuario'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
+                key={mensaje.id}
+                className={`flex ${mensaje.tipo === 'usuario' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className="flex items-start space-x-2">
-                  {mensaje.tipo !== 'usuario' && (
-                    <Bot className="h-4 w-4 mt-1 flex-shrink-0" />
-                  )}
-                  {mensaje.tipo === 'usuario' && (
-                    <User className="h-4 w-4 mt-1 flex-shrink-0" />
-                  )}
-                  <div className="flex-1">
-                    <p className="text-sm">{mensaje.contenido}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={`text-xs ${
-                        mensaje.tipo === 'usuario' ? 'text-blue-100' : 'text-gray-500'
-                      }`}>
-                        {formatearFecha(mensaje.timestamp)}
-                      </span>
+                <div
+                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    mensaje.tipo === 'usuario'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-900'
+                  }`}
+                >
+                  <div className="flex items-start space-x-2">
+                    {mensaje.tipo !== 'usuario' && (
+                      <Bot className="h-4 w-4 mt-1 flex-shrink-0" />
+                    )}
+                    {mensaje.tipo === 'usuario' && (
+                      <User className="h-4 w-4 mt-1 flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm whitespace-pre-line">{mensaje.contenido}</p>
+                      <div className="flex items-center justify-between mt-1">
+                        <span className={`text-xs ${
+                          mensaje.tipo === 'usuario' ? 'text-blue-100' : 'text-gray-500'
+                        }`}>
+                          {formatearFecha(mensaje.timestamp)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+            
+            {/* Botones de categorías */}
+            {estadoChat.mostrarCategorias && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 text-gray-900 max-w-xs lg:max-w-md px-4 py-3 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <Bot className="h-4 w-4 mt-1 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium mb-3">Selecciona una categoría:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {categorias.map((categoria) => (
+                          <button
+                            key={categoria}
+                            onClick={() => seleccionarCategoria(categoria)}
+                            className="px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 hover:border-blue-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                          >
+                            {categoria === 'Hardware' && '🔧'}
+                            {categoria === 'Software' && '💻'}
+                            {categoria === 'Red' && '🌐'}
+                            {categoria === 'Seguridad' && '🔒'}
+                            <span className="ml-1">{categoria}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         )}
         
         {enviando && (
