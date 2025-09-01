@@ -1,51 +1,47 @@
-import { createClient } from '@supabase/supabase-js'
-import { Database } from '../types/database'
+import { createClient } from '@supabase/supabase-js';
+import { Database } from '../types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
-  }
-})
+    detectSessionInUrl: true,
+  },
+});
 
 // Función para obtener el usuario actual
 export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
   if (error) {
-    console.error('Error obteniendo usuario:', error)
-    return null
+    console.error('Error obteniendo usuario:', error);
+    return null;
   }
-  return user
-}
+  return user;
+};
 
 // Función para obtener el perfil del usuario con rol (optimizada)
 export const getUserProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('usuarios')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  
+  const { data, error } = await supabase.from('usuarios').select('*').eq('id', userId).single();
+
   if (error) {
-    console.error('Error obteniendo perfil:', error)
-    return null
+    console.error('Error obteniendo perfil:', error);
+    return null;
   }
-  
-  return data
-}
+
+  return data;
+};
 
 // Función para obtener el perfil del usuario actual (optimizada)
 export const getCurrentUserProfile = async () => {
   try {
     // Obtener usuario y perfil en paralelo para mayor eficiencia
-    const [authResult, profileResult] = await Promise.allSettled([
-      supabase.auth.getUser(),
-      supabase.from('usuarios').select('*')
-    ]);
+    const [authResult, profileResult] = await Promise.allSettled([supabase.auth.getUser(), supabase.from('usuarios').select('*')]);
 
     // Verificar resultado de autenticación
     if (authResult.status === 'rejected') {
@@ -53,8 +49,11 @@ export const getCurrentUserProfile = async () => {
       return null;
     }
 
-    const { data: { user }, error: authError } = authResult.value;
-    
+    const {
+      data: { user },
+      error: authError,
+    } = authResult.value;
+
     if (authError || !user) {
       return null;
     }
@@ -66,28 +65,24 @@ export const getCurrentUserProfile = async () => {
     }
 
     const { data: profiles, error: profileError } = profileResult.value;
-    
+
     if (profileError) {
       console.error('🔍 [SUPABASE] Error en consulta de perfil:', profileError.message);
       return null;
     }
 
     // Buscar el perfil del usuario actual
-    const profile = profiles?.find(p => p.id === user.id);
-    
+    const profile = profiles?.find((p) => p.id === user.id);
+
     if (!profile) {
       // Fallback: consulta directa si no se encuentra en la consulta general
-       const { data: directProfile, error: directError } = await supabase
-         .from('usuarios')
-         .select('*')
-         .eq('id', user.id)
-         .single();
-        
+      const { data: directProfile, error: directError } = await supabase.from('usuarios').select('*').eq('id', user.id).single();
+
       if (directError) {
         console.error('🔍 [SUPABASE] Error en consulta directa:', directError.message);
         return null;
       }
-      
+
       return directProfile;
     }
 
@@ -96,31 +91,31 @@ export const getCurrentUserProfile = async () => {
     console.error('🔍 [SUPABASE] Error inesperado en getCurrentUserProfile():', error instanceof Error ? error.message : 'Error desconocido');
     return null;
   }
-}
+};
 
 // Función para login
 export const signIn = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password
-  })
-  
+    password,
+  });
+
   if (error) {
-    console.error('Error en login:', error)
-    return { user: null, error }
+    console.error('Error en login:', error);
+    return { user: null, error };
   }
-  
-  return { user: data.user, error: null }
-}
+
+  return { user: data.user, error: null };
+};
 
 // Función para logout
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
+  const { error } = await supabase.auth.signOut();
   if (error) {
-    console.error('Error en logout:', error)
+    console.error('Error en logout:', error);
   }
-  return error
-}
+  return error;
+};
 
 // Función para registrar usuario
 export const signUp = async (email: string, password: string, nombre: string, rol: string = 'personal') => {
@@ -132,9 +127,9 @@ export const signUp = async (email: string, password: string, nombre: string, ro
       options: {
         data: {
           nombre,
-          rol
-        }
-      }
+          rol,
+        },
+      },
     });
 
     if (authError) {
@@ -163,7 +158,7 @@ export const crearConversacion = async (usuarioId: string, titulo: string) => {
       .insert({
         usuario_id: usuarioId,
         titulo,
-        estado: 'activa'
+        estado: 'activa',
       })
       .select()
       .single();
@@ -181,13 +176,7 @@ export const crearConversacion = async (usuarioId: string, titulo: string) => {
 };
 
 // Función para enviar un mensaje
-export const enviarMensaje = async (
-  conversacionId: string,
-  contenido: string,
-  tipo: 'usuario' | 'bot' | 'sistema' = 'usuario',
-  usuarioId?: string | null,
-  metadata: any = {}
-) => {
+export const enviarMensaje = async (conversacionId: string, contenido: string, tipo: 'usuario' | 'bot' | 'sistema' = 'usuario', usuarioId?: string | null, metadata: any = {}) => {
   try {
     const { data, error } = await supabase
       .from('mensajes')
@@ -196,12 +185,14 @@ export const enviarMensaje = async (
         usuario_id: usuarioId || null,
         contenido,
         tipo,
-        metadata
+        metadata,
       })
-      .select(`
+      .select(
+        `
         *,
         usuario:usuarios(*)
-      `)
+      `,
+      )
       .single();
 
     if (error) {
@@ -210,10 +201,7 @@ export const enviarMensaje = async (
     }
 
     // Actualizar la fecha de última actividad de la conversación
-    await supabase
-      .from('conversaciones')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('id', conversacionId);
+    await supabase.from('conversaciones').update({ updated_at: new Date().toISOString() }).eq('id', conversacionId);
 
     return data;
   } catch (error) {
@@ -227,10 +215,12 @@ export const obtenerMensajesConversacion = async (conversacionId: string) => {
   try {
     const { data, error } = await supabase
       .from('mensajes')
-      .select(`
+      .select(
+        `
         *,
         usuario:usuarios(*)
-      `)
+      `,
+      )
       .eq('conversacion_id', conversacionId)
       .order('created_at', { ascending: true });
 
@@ -251,7 +241,8 @@ export const obtenerConversacionesUsuario = async (usuarioId: string) => {
   try {
     const { data, error } = await supabase
       .from('conversaciones')
-      .select(`
+      .select(
+        `
         *,
         usuario:usuarios(*),
         mensajes:mensajes(
@@ -261,7 +252,8 @@ export const obtenerConversacionesUsuario = async (usuarioId: string) => {
           created_at,
           usuario:usuarios(*)
         )
-      `)
+      `,
+      )
       .eq('usuario_id', usuarioId)
       .order('updated_at', { ascending: false });
 
@@ -271,13 +263,13 @@ export const obtenerConversacionesUsuario = async (usuarioId: string) => {
     }
 
     // Agregar el último mensaje a cada conversación
-    const conversacionesConUltimoMensaje = data?.map(conversacion => {
+    const conversacionesConUltimoMensaje = data?.map((conversacion) => {
       const mensajes = conversacion.mensajes || [];
       const ultimoMensaje = mensajes.length > 0 ? mensajes[mensajes.length - 1] : null;
-      
+
       return {
         ...conversacion,
-        ultimo_mensaje: ultimoMensaje
+        ultimo_mensaje: ultimoMensaje,
       };
     });
 
@@ -293,14 +285,16 @@ export const obtenerConversacion = async (conversacionId: string) => {
   try {
     const { data, error } = await supabase
       .from('conversaciones')
-      .select(`
+      .select(
+        `
         *,
         usuario:usuarios(*),
         mensajes:mensajes(
           *,
           usuario:usuarios(*)
         )
-      `)
+      `,
+      )
       .eq('id', conversacionId)
       .single();
 
@@ -311,9 +305,7 @@ export const obtenerConversacion = async (conversacionId: string) => {
 
     // Ordenar mensajes por fecha
     if (data.mensajes) {
-      data.mensajes.sort((a: any, b: any) => 
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      data.mensajes.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     }
 
     return data;
@@ -326,12 +318,7 @@ export const obtenerConversacion = async (conversacionId: string) => {
 // Función para cerrar una conversación
 export const cerrarConversacion = async (conversacionId: string) => {
   try {
-    const { data, error } = await supabase
-      .from('conversaciones')
-      .update({ estado: 'cerrada' })
-      .eq('id', conversacionId)
-      .select()
-      .single();
+    const { data, error } = await supabase.from('conversaciones').update({ estado: 'cerrada' }).eq('id', conversacionId).select().single();
 
     if (error) {
       console.error('Error cerrando conversación:', error);
@@ -355,135 +342,132 @@ export const suscribirseAMensajes = (conversacionId: string, callback: (mensaje:
         event: 'INSERT',
         schema: 'public',
         table: 'mensajes',
-        filter: `conversacion_id=eq.${conversacionId}`
+        filter: `conversacion_id=eq.${conversacionId}`,
       },
       async (payload) => {
         // Obtener el mensaje completo con datos del usuario
         const { data: mensaje } = await supabase
           .from('mensajes')
-          .select(`
+          .select(
+            `
             *,
             usuario:usuarios(nombre, email)
-          `)
+          `,
+          )
           .eq('id', payload.new.id)
-          .single()
+          .single();
 
         if (mensaje) {
-          callback(mensaje)
+          callback(mensaje);
         }
-      }
+      },
     )
-    .subscribe()
-}
+    .subscribe();
+};
 
 // ===== FUNCIONES DE INCIDENCIAS =====
 
 // Función para determinar la prioridad basada en palabras clave
 export const determinarPrioridad = (descripcion: string): 'baja' | 'media' | 'alta' | 'critica' => {
-  const texto = descripcion.toLowerCase()
-  
+  const texto = descripcion.toLowerCase();
+
   // Palabras clave para prioridad crítica
-  if (texto.includes('crítico') || texto.includes('critico') || 
-      texto.includes('urgente') || texto.includes('sistema caído') ||
-      texto.includes('no funciona nada') || texto.includes('emergencia')) {
-    return 'critica'
+  if (texto.includes('crítico') || texto.includes('critico') || texto.includes('urgente') || texto.includes('sistema caído') || texto.includes('no funciona nada') || texto.includes('emergencia')) {
+    return 'critica';
   }
-  
+
   // Palabras clave para prioridad alta
-  if (texto.includes('importante') || texto.includes('bloquea') ||
-      texto.includes('no puedo trabajar') || texto.includes('error grave') ||
-      texto.includes('falla total')) {
-    return 'alta'
+  if (texto.includes('importante') || texto.includes('bloquea') || texto.includes('no puedo trabajar') || texto.includes('error grave') || texto.includes('falla total')) {
+    return 'alta';
   }
-  
+
   // Palabras clave para prioridad baja
-  if (texto.includes('sugerencia') || texto.includes('mejora') ||
-      texto.includes('cuando puedas') || texto.includes('no es urgente')) {
-    return 'baja'
+  if (texto.includes('sugerencia') || texto.includes('mejora') || texto.includes('cuando puedas') || texto.includes('no es urgente')) {
+    return 'baja';
   }
-  
+
   // Por defecto: prioridad media
-  return 'media'
-}
+  return 'media';
+};
 
 // Función para generar un título basado en la descripción
 export const generarTitulo = (descripcion: string): string => {
-  const texto = descripcion.trim()
-  
+  const texto = descripcion.trim();
+
   // Si la descripción es corta, usarla como título
   if (texto.length <= 50) {
-    return texto
+    return texto;
   }
-  
+
   // Extraer las primeras palabras significativas
-  const palabras = texto.split(' ')
-  let titulo = ''
-  
+  const palabras = texto.split(' ');
+  let titulo = '';
+
   for (const palabra of palabras) {
-    if (titulo.length + palabra.length + 1 <= 47) { // 47 + "..." = 50
-      titulo += (titulo ? ' ' : '') + palabra
+    if (titulo.length + palabra.length + 1 <= 47) {
+      // 47 + "..." = 50
+      titulo += (titulo ? ' ' : '') + palabra;
     } else {
-      break
+      break;
     }
   }
-  
-  return titulo + '...'
-}
+
+  return titulo + '...';
+};
 
 // Función para determinar la categoría basada en palabras clave
 export const determinarCategoria = async (descripcion: string): Promise<number> => {
-  const texto = descripcion.toLowerCase()
-  
+  const texto = descripcion.toLowerCase();
+
   try {
     // Obtener todas las categorías
-    const { data: categorias } = await supabase
-      .from('categorias')
-      .select('id, nombre, descripcion')
-      .eq('activa', true)
-    
+    const { data: categorias } = await supabase.from('categorias').select('id, nombre, descripcion').eq('activa', true);
+
     if (!categorias || categorias.length === 0) {
-      return 1 // Categoría por defecto
+      return 1; // Categoría por defecto
     }
-    
+
     // Buscar coincidencias por palabras clave
     for (const categoria of categorias) {
-      const nombreCat = categoria.nombre.toLowerCase()
-      const descCat = categoria.descripcion?.toLowerCase() || ''
-      
-      if (texto.includes(nombreCat) || 
-          (descCat && texto.includes(descCat)) ||
-          nombreCat.includes('software') && (texto.includes('aplicación') || texto.includes('programa')) ||
-          nombreCat.includes('hardware') && (texto.includes('equipo') || texto.includes('computadora')) ||
-          nombreCat.includes('red') && (texto.includes('internet') || texto.includes('conexión'))) {
-        return categoria.id
+      const nombreCat = categoria.nombre.toLowerCase();
+      const descCat = categoria.descripcion?.toLowerCase() || '';
+
+      if (
+        texto.includes(nombreCat) ||
+        (descCat && texto.includes(descCat)) ||
+        (nombreCat.includes('software') && (texto.includes('aplicación') || texto.includes('programa'))) ||
+        (nombreCat.includes('hardware') && (texto.includes('equipo') || texto.includes('computadora'))) ||
+        (nombreCat.includes('red') && (texto.includes('internet') || texto.includes('conexión')))
+      ) {
+        return categoria.id;
       }
     }
-    
+
     // Si no hay coincidencias, devolver la primera categoría
-    return categorias[0].id
+    return categorias[0].id;
   } catch (error) {
-    console.error('Error determinando categoría:', error)
-    return 1 // Categoría por defecto en caso de error
+    console.error('Error determinando categoría:', error);
+    return 1; // Categoría por defecto en caso de error
   }
-}
+};
 
 // Función principal para crear una incidencia
 export const crearIncidencia = async (descripcion: string, usuarioId: string): Promise<any> => {
   try {
-    console.log('🔄 Iniciando creación de incidencia...')
-    console.log('📝 Descripción:', descripcion)
-    console.log('👤 Usuario ID:', usuarioId)
-    
+    console.log('🔄 Iniciando creación de incidencia...');
+    console.log('📝 Descripción:', descripcion);
+    console.log('👤 Usuario ID:', usuarioId);
+
     // Generar datos de la incidencia
-    const prioridad = determinarPrioridad(descripcion)
-    const titulo = generarTitulo(descripcion)
-    const categoriaId = await determinarCategoria(descripcion)
-    
-    console.log('📊 Datos generados:')
-    console.log('  - Título:', titulo)
-    console.log('  - Prioridad:', prioridad)
-    console.log('  - Categoría ID:', categoriaId)
-    
+    const prioridad = determinarPrioridad(descripcion);
+    const titulo = generarTitulo(descripcion);
+    const categoriaId = await determinarCategoria(descripcion);
+
+    console.log('📊 Datos generados:');
+    console.log('  - Título:', titulo);
+    console.log('  - Prioridad:', prioridad);
+    console.log('  - Categoría ID:', categoriaId);
+
     // Crear la incidencia en la base de datos
     const { data, error } = await supabase
       .from('incidencias')
@@ -493,76 +477,76 @@ export const crearIncidencia = async (descripcion: string, usuarioId: string): P
         prioridad,
         categoria_id: categoriaId,
         usuario_id: usuarioId,
-        estado: 'abierta'
+        estado: 'abierta',
       })
-      .select(`
+      .select(
+        `
         *,
         categorias(nombre, descripcion)
-      `)
-      .single()
-    
+      `,
+      )
+      .single();
+
     if (error) {
-      console.error('❌ Error al crear incidencia:', error)
-      throw error
+      console.error('❌ Error al crear incidencia:', error);
+      throw error;
     }
-    
-    console.log('✅ Incidencia creada exitosamente:', data)
-    return data
-    
+
+    console.log('✅ Incidencia creada exitosamente:', data);
+    return data;
   } catch (error) {
-    console.error('❌ Error en crearIncidencia:', error)
-    throw error
+    console.error('❌ Error en crearIncidencia:', error);
+    throw error;
   }
-}
+};
 
 // Función para obtener incidencias de un usuario
 export const obtenerIncidenciasUsuario = async (usuarioId: string) => {
   try {
-    console.log('🔍 [DEBUG] obtenerIncidenciasUsuario iniciado')
-    console.log('🔍 [DEBUG] usuarioId recibido:', usuarioId)
-    console.log('🔍 [DEBUG] Tipo de usuarioId:', typeof usuarioId)
-    
+    console.log('🔍 [DEBUG] obtenerIncidenciasUsuario iniciado');
+    console.log('🔍 [DEBUG] usuarioId recibido:', usuarioId);
+    console.log('🔍 [DEBUG] Tipo de usuarioId:', typeof usuarioId);
+
     const { data, error } = await supabase
       .from('incidencias')
-      .select(`
-        id,
-        titulo,
-        descripcion,
-        estado,
-        prioridad,
-        categoria_id,
-        usuario_id,
-        created_at,
-        updated_at,
-        codigo,
-        categorias(nombre, descripcion),
-        respuestas(id, contenido, created_at)
-      `)
+      .select(
+        `
+        *,
+        usuario:usuarios!incidencias_usuario_id_fkey(*),
+        categoria:categorias(*),
+        asignado:usuarios!incidencias_asignado_a_fkey(*),
+        respuestas(
+          *,
+          usuario:usuarios(*)
+        )
+      `,
+      )
       .eq('usuario_id', usuarioId)
-      .order('created_at', { ascending: false })
-    
-    console.log('🔍 [DEBUG] Consulta ejecutada con usuario_id:', usuarioId)
-    console.log('🔍 [DEBUG] Resultado de la consulta:', { data, error })
-    console.log('🔍 [DEBUG] Cantidad de resultados:', data?.length || 0)
-    
+      .order('created_at', { ascending: false });
+
+    console.log('🔍 [DEBUG] Consulta ejecutada con usuario_id:', usuarioId);
+    console.log('🔍 [DEBUG] Resultado de la consulta:', { data, error });
+    console.log('🔍 [DEBUG] Cantidad de resultados:', data?.length || 0);
+
     if (error) {
-      console.error('❌ [DEBUG] Error en consulta Supabase:', error)
-      throw error
+      console.error('❌ [DEBUG] Error en consulta Supabase:', error);
+      throw error;
     }
-    
-    return data || []
+
+    return data || [];
   } catch (error) {
-    console.error('❌ Error obteniendo incidencias:', error)
-    throw error
+    console.error('❌ Error obteniendo incidencias:', error);
+    throw error;
   }
-}
+};
 
 // Función para obtener una incidencia específica
 export const obtenerIncidencia = async (incidenciaId: string) => {
   try {
     const { data, error } = await supabase
       .from('incidencias')
-      .select(`
+      .select(
+        `
         *,
         categorias(nombre, descripcion),
         usuarios(nombre, email),
@@ -570,25 +554,21 @@ export const obtenerIncidencia = async (incidenciaId: string) => {
           *,
           usuarios(nombre, email)
         )
-      `)
+      `,
+      )
       .eq('id', incidenciaId)
-      .single()
-    
-    if (error) throw error
-    return data
+      .single();
+
+    if (error) throw error;
+    return data;
   } catch (error) {
-    console.error('Error obteniendo incidencia:', error)
-    throw error
+    console.error('Error obteniendo incidencia:', error);
+    throw error;
   }
 };
 
 // Función para crear una respuesta
-export const crearRespuesta = async (
-  incidenciaId: string,
-  usuarioId: string,
-  contenido: string,
-  tipo: 'respuesta' | 'nota_interna' | 'solucion' = 'respuesta'
-) => {
+export const crearRespuesta = async (incidenciaId: string, usuarioId: string, contenido: string, tipo: 'respuesta' | 'nota_interna' | 'solucion' = 'respuesta') => {
   try {
     const { data, error } = await supabase
       .from('respuestas')
@@ -596,98 +576,93 @@ export const crearRespuesta = async (
         incidencia_id: incidenciaId,
         usuario_id: usuarioId,
         contenido,
-        tipo
+        tipo,
       })
-      .select(`
+      .select(
+        `
         *,
         usuarios(nombre, email)
-      `)
-      .single()
-    
+      `,
+      )
+      .single();
+
     if (error) {
-      console.error('Error creando respuesta:', error)
-      throw error
+      console.error('Error creando respuesta:', error);
+      throw error;
     }
-    
-    return data
+
+    return data;
   } catch (error) {
-    console.error('Error en crearRespuesta:', error)
-    throw error
+    console.error('Error en crearRespuesta:', error);
+    throw error;
   }
 };
 
 // Función para obtener todas las categorías activas
 export const obtenerCategorias = async () => {
   try {
-    const { data, error } = await supabase
-      .from('categorias')
-      .select('*')
-      .eq('activa', true)
-      .order('nombre', { ascending: true })
-    
-    if (error) throw error
-    return data || []
+    const { data, error } = await supabase.from('categorias').select('*').eq('activa', true).order('nombre', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error('Error obteniendo categorías:', error)
-    throw error
+    console.error('Error obteniendo categorías:', error);
+    throw error;
   }
-}
+};
 
 // ===== FUNCIONES DE ASIGNACIÓN MEJORADA =====
 
 // Función para obtener usuarios de soporte disponibles
 export const obtenerUsuariosSoporte = async () => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_support_users')
-    
+    const { data, error } = await supabase.rpc('get_support_users');
+
     if (error) {
-      console.error('Error obteniendo usuarios de soporte:', error)
-      throw error
+      console.error('Error obteniendo usuarios de soporte:', error);
+      throw error;
     }
-    
-    return data || []
+
+    return data || [];
   } catch (error) {
-    console.error('Error en obtenerUsuariosSoporte:', error)
-    throw error
+    console.error('Error en obtenerUsuariosSoporte:', error);
+    throw error;
   }
-}
+};
 
 // Función para obtener estadísticas de carga de trabajo
 export const obtenerCargaTrabajo = async () => {
   try {
-    const { data, error } = await supabase
-      .rpc('get_support_workload')
-    
+    const { data, error } = await supabase.rpc('get_support_workload');
+
     if (error) {
-      console.error('Error obteniendo carga de trabajo:', error)
-      throw error
+      console.error('Error obteniendo carga de trabajo:', error);
+      throw error;
     }
-    
-    return data || []
+
+    return data || [];
   } catch (error) {
-    console.error('Error en obtenerCargaTrabajo:', error)
-    throw error
+    console.error('Error en obtenerCargaTrabajo:', error);
+    throw error;
   }
-}
+};
 
 // Función para asignar automáticamente una incidencia
 export const asignarIncidenciaAutomatica = async (incidenciaId: string) => {
   try {
-    const { data, error } = await supabase
-      .rpc('auto_assign_incident', { incident_id: incidenciaId })
-    
+    const { data, error } = await supabase.rpc('auto_assign_incident', { incident_id: incidenciaId });
+
     if (error) {
-      console.error('Error en asignación automática:', error)
-      throw error
+      console.error('Error en asignación automática:', error);
+      throw error;
     }
-    
-    return data
+
+    return data;
   } catch (error) {
-    console.error('Error en asignarIncidenciaAutomatica:', error)
-    throw error
+    console.error('Error en asignarIncidenciaAutomatica:', error);
+    throw error;
   }
-}
+};
 
 // Función para asignar manualmente una incidencia a un usuario específico
 export const asignarIncidenciaManual = async (incidenciaId: string, usuarioId: string) => {
@@ -697,28 +672,30 @@ export const asignarIncidenciaManual = async (incidenciaId: string, usuarioId: s
       .update({
         asignado_a: usuarioId,
         estado: 'en_progreso',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', incidenciaId)
-      .select(`
+      .select(
+        `
         *,
         categoria:categorias(*),
         usuario:usuarios!incidencias_usuario_id_fkey(*),
         asignado:usuarios!incidencias_asignado_a_fkey(*)
-      `)
-      .single()
-    
+      `,
+      )
+      .single();
+
     if (error) {
-      console.error('Error en asignación manual:', error)
-      throw error
+      console.error('Error en asignación manual:', error);
+      throw error;
     }
-    
-    return data
+
+    return data;
   } catch (error) {
-    console.error('Error en asignarIncidenciaManual:', error)
-    throw error
+    console.error('Error en asignarIncidenciaManual:', error);
+    throw error;
   }
-}
+};
 
 // Función para desasignar una incidencia
 export const desasignarIncidencia = async (incidenciaId: string) => {
@@ -728,25 +705,27 @@ export const desasignarIncidencia = async (incidenciaId: string) => {
       .update({
         asignado_a: null,
         estado: 'abierta',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', incidenciaId)
-      .select(`
+      .select(
+        `
         *,
         categoria:categorias(*),
         usuario:usuarios!incidencias_usuario_id_fkey(*),
         asignado:usuarios!incidencias_asignado_a_fkey(*)
-      `)
-      .single()
-    
+      `,
+      )
+      .single();
+
     if (error) {
-      console.error('Error desasignando incidencia:', error)
-      throw error
+      console.error('Error desasignando incidencia:', error);
+      throw error;
     }
-    
-    return data
+
+    return data;
   } catch (error) {
-    console.error('Error en desasignarIncidencia:', error)
-    throw error
+    console.error('Error en desasignarIncidencia:', error);
+    throw error;
   }
-}
+};

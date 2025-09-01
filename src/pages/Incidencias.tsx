@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react'
 import { Search, Filter, Plus, Eye, MessageSquare, Clock, AlertCircle, CheckCircle, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuthStore } from '../store/authStore'
-import type { Incidencia, Categoria, IncidenciaFilter } from '../types/database'
+import type { Incidencia, Categoria, IncidenciaFilter, IncidenciaConRelaciones } from '../types/database'
 import { obtenerIncidenciasUsuario, obtenerCategorias } from '../lib/supabase'
 
 function Incidencias() {
   console.log('🎯 [INCIDENCIAS] Componente Incidencias iniciando...')
   
   const { user } = useAuthStore()
-  const [incidencias, setIncidencias] = useState<Incidencia[]>([])
+  const [incidencias, setIncidencias] = useState<IncidenciaConRelaciones[]>([])
   const [categorias, setCategorias] = useState<Categoria[]>([])
-  const [incidenciaSeleccionada, setIncidenciaSeleccionada] = useState<Incidencia | null>(null)
+  const [incidenciaSeleccionada, setIncidenciaSeleccionada] = useState<IncidenciaConRelaciones | null>(null)
   const [filtros, setFiltros] = useState<IncidenciaFilter>({
     busqueda: '',
     estado: 'todas',
@@ -40,7 +40,7 @@ function Incidencias() {
     console.log('🧹 [DEBUG] Limpiando datos de prueba...')
     
     // Verificar si el usuario actual tiene ID numérico
-    if (user && (user.id === '1' || user.id === 1 || typeof user.id === 'number')) {
+    if (user && (user.id === '1' || typeof user.id === 'number')) {
       console.log('🧹 [DEBUG] Usuario con ID numérico detectado:', user.id)
       console.log('🧹 [DEBUG] Limpiando localStorage y forzando logout...')
       
@@ -68,7 +68,7 @@ function Incidencias() {
         const parsed = JSON.parse(userData)
         console.log('🔍 [DEBUG] Datos en localStorage:', parsed)
         
-        if (parsed.id === '1' || parsed.id === 1 || typeof parsed.id === 'number') {
+        if (parsed.id === '1' || typeof parsed.id === 'number') {
           console.log('🧹 [DEBUG] Removiendo datos de prueba del localStorage')
           localStorage.removeItem('incibot_user_data')
           localStorage.removeItem('auth-storage')
@@ -99,7 +99,7 @@ function Incidencias() {
     console.log('👤 Usuario en useEffect inicial:', user)
     
     // FORZAR limpieza inmediata si hay datos de prueba
-    if (user && (user.id === '1' || user.id === 1 || typeof user.id === 'number')) {
+    if (user && (user.id === '1' || typeof user.id === 'number')) {
       console.log('🧹 [FORZADO] Detectado usuario con ID numérico:', user.id)
       console.log('🧹 [FORZADO] Limpiando localStorage y forzando logout...')
       

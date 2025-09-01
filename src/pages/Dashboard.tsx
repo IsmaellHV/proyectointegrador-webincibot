@@ -269,8 +269,8 @@ const Dashboard: React.FC = () => {
         estado: inc.estado,
         prioridad: inc.prioridad,
         created_at: inc.created_at,
-        usuario: { nombre: inc.usuarios?.nombre || 'Usuario desconocido' },
-        categoria: { nombre: inc.categorias?.nombre || 'Sin categoría' }
+        usuario: { nombre: inc.usuarios?.[0]?.nombre || 'Usuario desconocido' },
+        categoria: { nombre: inc.categorias?.[0]?.nombre || 'Sin categoría' }
       })) || []
       
       setRecentIncidencias(incidenciasFormateadas)

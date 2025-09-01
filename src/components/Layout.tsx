@@ -242,7 +242,7 @@ const Layout: React.FC = () => {
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-              {console.log('🎯 [LAYOUT] Renderizando Outlet para ruta:', location.pathname)}
+              {/* Debug: Renderizando Outlet para ruta: {location.pathname} */}
               <Outlet />
             </div>
           </div>

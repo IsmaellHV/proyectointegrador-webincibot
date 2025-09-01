@@ -134,7 +134,7 @@ export const useAuthStore = create<AuthStore>((set, get) => {
     const storedUser = getUserFromStorage();
     console.log('🔍 [AUTH] Usuario en localStorage después de limpiar:', storedUser);
     
-    if (storedUser && (storedUser.id === '1' || storedUser.id === 1 || typeof storedUser.id === 'number')) {
+    if (storedUser && (storedUser.id === '1' || storedUser.id === '1' || typeof storedUser.id === 'number')) {
       console.log('🧹 [AUTH] FORZANDO limpieza de datos de prueba del localStorage');
       clearUserFromStorage();
       localStorage.clear();
